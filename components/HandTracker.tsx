@@ -81,8 +81,10 @@ export default function HandTracker() {
   const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Player position (from face detection)
-  const playerPositionRef = useRef<{ x: number; y: number } | null>(null);
+  // Shield position (moves to random targets every 5 seconds)
+  const shieldPositionRef = useRef<{ x: number; y: number } | null>(null);
+  const shieldTargetRef = useRef<{ x: number; y: number } | null>(null);
+  const lastShieldMoveRef = useRef<number>(0);
 
   // Crosshair position (independent from hand position)
   const crosshairPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -105,6 +107,7 @@ export default function HandTracker() {
   const particlesRef = useRef<Particle[]>([]);
   const bulletsRef = useRef<Bullet[]>([]);
   const lastShootTimeRef = useRef<Map<number, number>>(new Map());
+  const playerHpRef = useRef<number>(100);
 
   // Plane sprites
   const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
@@ -325,6 +328,11 @@ export default function HandTracker() {
     bulletsRef.current = bullets;
   }, [bullets]);
 
+  // Sync playerHp state to ref
+  useEffect(() => {
+    playerHpRef.current = playerHp;
+  }, [playerHp]);
+
   // Sync ducks state to ref and update score when ducks die
   useEffect(() => {
     const previousDucks = ducksRef.current;
@@ -449,27 +457,29 @@ export default function HandTracker() {
         now
       );
 
-      // Detect face position
-      if (faceDetectorRef.current && video) {
-        try {
-          const faceResults = faceDetectorRef.current.detectForVideo(video, now);
-          if (faceResults && faceResults.detections && faceResults.detections.length > 0) {
-            const face = faceResults.detections[0].boundingBox;
-            if (face) {
-              playerPositionRef.current = {
-                x: (face.originX + face.width / 2) * canvas.width,
-                y: (face.originY + face.height / 2) * canvas.height,
-              };
-            }
-          }
-        } catch (e) {
-          console.error("Face detection error:", e);
-        }
+      // Initialize shield position on first frame
+      if (!shieldPositionRef.current) {
+        shieldPositionRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+        shieldTargetRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+        lastShieldMoveRef.current = now;
       }
 
-      // Default to center if no face detected
-      if (!playerPositionRef.current) {
-        playerPositionRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+      // Update shield target every 5 seconds
+      if (now - lastShieldMoveRef.current > 5000) {
+        // Choose new random target position (keep away from edges)
+        const margin = 150;
+        shieldTargetRef.current = {
+          x: margin + Math.random() * (canvas.width - margin * 2),
+          y: margin + Math.random() * (canvas.height - margin * 2),
+        };
+        lastShieldMoveRef.current = now;
+      }
+
+      // Smoothly interpolate shield position towards target
+      if (shieldTargetRef.current && shieldPositionRef.current) {
+        const lerpFactor = 0.02; // Smooth movement speed
+        shieldPositionRef.current.x += (shieldTargetRef.current.x - shieldPositionRef.current.x) * lerpFactor;
+        shieldPositionRef.current.y += (shieldTargetRef.current.y - shieldPositionRef.current.y) * lerpFactor;
       }
 
       // Clear canvas
@@ -812,10 +822,10 @@ export default function HandTracker() {
           const newX = bullet.x + bullet.vx;
           const newY = bullet.y + bullet.vy;
 
-          // Check collision with player (center of screen)
-          if (!gameOver) {
-            const shieldX = canvasWidth / 2;
-            const shieldY = canvasHeight / 2;
+          // Check collision with player shield
+          if (!gameOver && shieldPositionRef.current) {
+            const shieldX = shieldPositionRef.current.x;
+            const shieldY = shieldPositionRef.current.y;
             const dx = newX - shieldX;
             const dy = newY - shieldY;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -867,23 +877,38 @@ export default function HandTracker() {
 
   function drawPlayerShield(ctx: CanvasRenderingContext2D) {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !shieldPositionRef.current) return;
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const shieldX = shieldPositionRef.current.x;
+    const shieldY = shieldPositionRef.current.y;
+    const shieldRadius = 80;
 
-    // Shield circle (60% smaller: 200 * 0.4 = 80)
+    // HP bar above shield (thin bar, no text)
+    const barWidth = 160;
+    const barHeight = 8;
+    const barX = shieldX - barWidth / 2;
+    const barY = shieldY - shieldRadius - 20;
+
+    // HP bar background
+    ctx.fillStyle = "#333333";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // HP bar fill (using ref for correct value)
+    const hpRatio = playerHpRef.current / 100;
+    ctx.fillStyle = hpRatio > 0.5 ? "#00ff88" : hpRatio > 0.25 ? "#feca57" : "#ff6b6b";
+    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+
+    // HP bar border
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // Shield circle
     ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 80, 0, 2 * Math.PI);
+    ctx.arc(shieldX, shieldY, shieldRadius, 0, 2 * Math.PI);
     ctx.stroke();
-
-    // Text
-    ctx.fillStyle = "#00ff00";
-    ctx.font = "bold 24px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillText(`HP: ${playerHp}`, centerX, centerY);
   }
 
   function updateParticles() {
@@ -1017,25 +1042,25 @@ export default function HandTracker() {
           newVy *= speedRatio;
         }
 
-        // Shoot at player (center) occasionally with spread
+        // Shoot at player shield occasionally with spread
         const lastShot = lastShootTimeRef.current.get(duck.id) || 0;
         const nowTime = Date.now();
-        if (nowTime - lastShot > 3000 && !gameOver) {
-          // Shoot towards center (where shield is) with cone spread
-          const targetX = canvasWidth / 2;
-          const targetY = canvasHeight / 2;
+        if (nowTime - lastShot > 3000 && !gameOver && shieldPositionRef.current) {
+          // Shoot towards shield position with cone spread
+          const targetX = shieldPositionRef.current.x;
+          const targetY = shieldPositionRef.current.y;
 
           const dx = targetX - duck.x;
           const dy = targetY - duck.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist > 0) {
-            // Calculate angle to center
-            const angleToCenter = Math.atan2(dy, dx);
+            // Calculate angle to player
+            const angleToPlayer = Math.atan2(dy, dx);
 
             // Add random spread (cone of ±35 degrees = ±0.611 radians)
             const spreadAngle = (Math.random() - 0.5) * 1.222; // ±35 degrees
-            const finalAngle = angleToCenter + spreadAngle;
+            const finalAngle = angleToPlayer + spreadAngle;
 
             const speed = 6;
             setBullets((prev) => [
