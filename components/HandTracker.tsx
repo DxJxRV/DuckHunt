@@ -418,7 +418,7 @@ export default function HandTracker() {
         y: Math.random() * (canvasHeight - 200) + 100,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        size: 120, // Duplicado de 60 a 120
+        size: 84, // 30% smaller (120 * 0.7 = 84)
         color: colors[i % colors.length],
         alive: true,
         hp: 100,
@@ -820,8 +820,8 @@ export default function HandTracker() {
             const dy = newY - shieldY;
             const distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < 200) {
-              // Hit player
+            if (distance < 80) {
+              // Hit player (shield radius = 80)
               setPlayerHp((prev) => {
                 const newHp = Math.max(0, prev - 1);
                 if (newHp === 0) setGameOver(true);
@@ -854,13 +854,13 @@ export default function HandTracker() {
     bulletsRef.current.forEach((bullet) => {
       ctx.fillStyle = "#ff6b6b";
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 5, 0, 2 * Math.PI);
+      ctx.arc(bullet.x, bullet.y, 3.5, 0, 2 * Math.PI); // 30% smaller (5 * 0.7 = 3.5)
       ctx.fill();
 
       // Glow
       ctx.fillStyle = "rgba(255, 107, 107, 0.3)";
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 10, 0, 2 * Math.PI);
+      ctx.arc(bullet.x, bullet.y, 7, 0, 2 * Math.PI); // 30% smaller (10 * 0.7 = 7)
       ctx.fill();
     });
   }
@@ -872,16 +872,16 @@ export default function HandTracker() {
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
 
-    // Big green circle (WORKS)
+    // Shield circle (60% smaller: 200 * 0.4 = 80)
     ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
-    ctx.lineWidth = 10;
+    ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 200, 0, 2 * Math.PI);
+    ctx.arc(centerX, centerY, 80, 0, 2 * Math.PI);
     ctx.stroke();
 
     // Text
     ctx.fillStyle = "#00ff00";
-    ctx.font = "bold 30px system-ui";
+    ctx.font = "bold 24px system-ui";
     ctx.textAlign = "center";
     ctx.fillText(`HP: ${playerHp}`, centerX, centerY);
   }
@@ -1017,11 +1017,11 @@ export default function HandTracker() {
           newVy *= speedRatio;
         }
 
-        // Shoot at player (center) occasionally
+        // Shoot at player (center) occasionally with spread
         const lastShot = lastShootTimeRef.current.get(duck.id) || 0;
         const nowTime = Date.now();
         if (nowTime - lastShot > 3000 && !gameOver) {
-          // Shoot towards center (where shield is)
+          // Shoot towards center (where shield is) with cone spread
           const targetX = canvasWidth / 2;
           const targetY = canvasHeight / 2;
 
@@ -1030,14 +1030,21 @@ export default function HandTracker() {
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist > 0) {
+            // Calculate angle to center
+            const angleToCenter = Math.atan2(dy, dx);
+
+            // Add random spread (cone of ±35 degrees = ±0.611 radians)
+            const spreadAngle = (Math.random() - 0.5) * 1.222; // ±35 degrees
+            const finalAngle = angleToCenter + spreadAngle;
+
             const speed = 6;
             setBullets((prev) => [
               ...prev,
               {
                 x: duck.x,
                 y: duck.y,
-                vx: (dx / dist) * speed,
-                vy: (dy / dist) * speed,
+                vx: Math.cos(finalAngle) * speed,
+                vy: Math.sin(finalAngle) * speed,
                 fromDuckId: duck.id,
               },
             ]);
