@@ -25,9 +25,24 @@ interface Duck {
   id: number;
   x: number;
   y: number;
+  vx: number;
+  vy: number;
   size: number;
   color: string;
   alive: boolean;
+  hp: number;
+  maxHp: number;
+}
+
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  color: string;
 }
 
 export default function HandTracker() {
@@ -37,6 +52,7 @@ export default function HandTracker() {
   const [fps, setFps] = useState<number>(0);
   const [isFiring, setIsFiring] = useState<boolean>(false);
   const [ducks, setDucks] = useState<Duck[]>([]);
+  const [particles, setParticles] = useState<Particle[]>([]);
   const [score, setScore] = useState<number>(0);
   const [hitMessage, setHitMessage] = useState<string | null>(null);
   const [isFistDetected, setIsFistDetected] = useState<boolean>(false);
@@ -70,13 +86,85 @@ export default function HandTracker() {
 
   // Ducks ref for access in animation loop
   const ducksRef = useRef<Duck[]>([]);
+  const particlesRef = useRef<Particle[]>([]);
+
+  // Plane sprites
+  const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
+  const planeSprite2Ref = useRef<HTMLImageElement | null>(null);
+  const spritesLoadedRef = useRef<boolean>(false);
+
+  // Audio
+  const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
+  const engineSoundRef = useRef<HTMLAudioElement | null>(null);
+  const damageSoundRef = useRef<HTMLAudioElement | null>(null);
+  const explosionSoundRef = useRef<HTMLAudioElement | null>(null);
+  const audioInitializedRef = useRef<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
 
+    // Load plane sprites
+    const loadSprites = async () => {
+      const img1 = new Image();
+      const img2 = new Image();
+
+      img1.src = "/sprites/plane-1.png";
+      img2.src = "/sprites/plane-2.png";
+
+      await Promise.all([
+        new Promise((resolve) => { img1.onload = resolve; }),
+        new Promise((resolve) => { img2.onload = resolve; }),
+      ]);
+
+      planeSprite1Ref.current = img1;
+      planeSprite2Ref.current = img2;
+      spritesLoadedRef.current = true;
+    };
+
+    // Load audio files
+    const loadAudio = () => {
+      const bgMusic = new Audio("/sounds/background-music.mp3");
+      const engine = new Audio("/sounds/engine.mp3");
+      const damage = new Audio("/sounds/damage.mp3");
+      const explosion = new Audio("/sounds/explosion.mp3");
+
+      bgMusic.loop = true;
+      bgMusic.volume = 0.3;
+
+      engine.loop = true;
+      engine.volume = 0;
+
+      damage.volume = 0.5;
+      explosion.volume = 0.7;
+
+      backgroundMusicRef.current = bgMusic;
+      engineSoundRef.current = engine;
+      damageSoundRef.current = damage;
+      explosionSoundRef.current = explosion;
+    };
+
+    // Initialize audio on first user interaction
+    const initAudio = async () => {
+      if (audioInitializedRef.current) return;
+
+      try {
+        await backgroundMusicRef.current?.play();
+        await engineSoundRef.current?.play();
+        audioInitializedRef.current = true;
+      } catch (e) {
+        console.log("Audio autoplay blocked, will retry on interaction");
+      }
+    };
+
     async function initialize() {
       try {
         setStatus("loading");
+
+        // Load sprites first
+        await loadSprites();
+
+        // Load audio files
+        loadAudio();
 
         // Load MediaPipe FilesetResolver and HandLandmarker
         const vision = await FilesetResolver.forVisionTasks(WASM_FILES_PATH);
@@ -187,24 +275,109 @@ export default function HandTracker() {
     };
   }, []);
 
-  // Sync ducks state to ref
+  // Sync particles state to ref
   useEffect(() => {
+    particlesRef.current = particles;
+  }, [particles]);
+
+  // Sync ducks state to ref and update score when ducks die
+  useEffect(() => {
+    const previousDucks = ducksRef.current;
     ducksRef.current = ducks;
+
+    // Check if any ducks died and update score
+    if (previousDucks.length > 0) {
+      ducks.forEach((duck, index) => {
+        const prevDuck = previousDucks[index];
+
+        // Duck died - play explosion
+        if (prevDuck && prevDuck.alive && !duck.alive) {
+          setScore((prev) => prev + 10);
+          setHitMessage("CONSUMED! +10");
+          setTimeout(() => setHitMessage(null), 500);
+
+          // Create explosion particles
+          createExplosionParticles(duck.x, duck.y);
+
+          // Play explosion sound
+          if (explosionSoundRef.current) {
+            explosionSoundRef.current.currentTime = 0;
+            explosionSoundRef.current.play().catch(() => {});
+          }
+        }
+
+        // Duck took damage - play damage sound
+        if (prevDuck && duck.alive && prevDuck.hp > duck.hp) {
+          if (damageSoundRef.current && Math.random() > 0.7) {
+            // 30% chance to play to avoid spam
+            damageSoundRef.current.currentTime = 0;
+            damageSoundRef.current.play().catch(() => {});
+          }
+        }
+      });
+    }
+
+    // Update engine sound volume based on average plane speed
+    const alivePlanes = ducks.filter((d) => d.alive);
+    if (alivePlanes.length > 0 && engineSoundRef.current) {
+      const avgSpeed =
+        alivePlanes.reduce((sum, duck) => {
+          const speed = Math.sqrt(duck.vx * duck.vx + duck.vy * duck.vy);
+          return sum + speed;
+        }, 0) / alivePlanes.length;
+
+      // Map speed (2-10) to volume (0.2-0.6)
+      const volume = Math.min(0.6, Math.max(0.2, (avgSpeed - 2) / 8 * 0.4 + 0.2));
+      engineSoundRef.current.volume = volume;
+    }
   }, [ducks]);
+
+  function createExplosionParticles(x: number, y: number) {
+    const newParticles: Particle[] = [];
+    const colors = ["#ff6b6b", "#ff9f43", "#feca57", "#888888", "#444444"];
+
+    // Create 15-25 particles
+    const particleCount = 15 + Math.floor(Math.random() * 10);
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 3 + Math.random() * 8;
+
+      newParticles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2, // Slight upward bias
+        life: 1.0,
+        maxLife: 1.0,
+        size: 4 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      });
+    }
+
+    setParticles((prev) => [...prev, ...newParticles]);
+  }
 
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
     const colors = ["#ff6b6b", "#4ecdc4", "#feca57", "#ff9ff3", "#48dbfb"];
     const newDucks: Duck[] = [];
 
-    // Create 5 ducks at random positions
+    // Create 5 ducks at random positions with random velocities
     for (let i = 0; i < 5; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 3; // 2-5 pixels per frame
+
       newDucks.push({
         id: i,
-        x: Math.random() * (canvasWidth - 100) + 50,
-        y: Math.random() * (canvasHeight - 100) + 50,
-        size: 60,
+        x: Math.random() * (canvasWidth - 200) + 100,
+        y: Math.random() * (canvasHeight - 200) + 100,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: 120, // Duplicado de 60 a 120
         color: colors[i % colors.length],
         alive: true,
+        hp: 100,
+        maxHp: 100,
       });
     }
 
@@ -234,7 +407,16 @@ export default function HandTracker() {
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw ducks first (behind everything)
+      // Update particle physics
+      updateParticles();
+
+      // Update duck physics
+      updateDuckPhysics(canvas.width, canvas.height);
+
+      // Draw particles first (behind ducks)
+      drawParticles(ctx);
+
+      // Draw ducks
       drawDucks(ctx);
 
       // Draw hand landmarks and process both hands
@@ -310,6 +492,15 @@ export default function HandTracker() {
               Math.min(canvas.height, crosshairPositionRef.current.y)
             );
           }
+        }
+
+        // Draw black hole effect if fist detected
+        if (isFistDetectedRef.current && crosshairPositionRef.current) {
+          drawBlackHole(
+            ctx,
+            crosshairPositionRef.current.x,
+            crosshairPositionRef.current.y
+          );
         }
 
         // Draw crosshair at independent position
@@ -404,6 +595,46 @@ export default function HandTracker() {
     });
   }
 
+  function drawBlackHole(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number
+  ) {
+    const time = performance.now() / 1000;
+
+    // Draw multiple pulsing circles for black hole effect
+    for (let i = 0; i < 3; i++) {
+      const radius = 150 - i * 30 + Math.sin(time * 3 + i) * 10;
+      const alpha = 0.3 - i * 0.1;
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, 2 * Math.PI);
+      ctx.strokeStyle = `rgba(138, 43, 226, ${alpha})`; // Purple
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // Draw central vortex
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 80);
+    gradient.addColorStop(0, "rgba(75, 0, 130, 0.8)"); // Dark purple center
+    gradient.addColorStop(0.5, "rgba(138, 43, 226, 0.4)");
+    gradient.addColorStop(1, "rgba(138, 43, 226, 0)");
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, 80, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw event horizon (kill radius)
+    ctx.beginPath();
+    ctx.arc(x, y, 30, 0, 2 * Math.PI);
+    ctx.strokeStyle = "rgba(255, 0, 255, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   function drawCrosshair(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -447,74 +678,215 @@ export default function HandTracker() {
     ctx.fill();
   }
 
-  function drawDucks(ctx: CanvasRenderingContext2D) {
-    const aliveDucks = ducksRef.current.filter(d => d.alive);
+  function updateParticles() {
+    setParticles((prevParticles) =>
+      prevParticles
+        .map((particle) => {
+          // Update velocity (apply gravity)
+          const newVy = particle.vy + 0.3; // Gravity
 
-    ducksRef.current.forEach((duck) => {
-      if (!duck.alive) return;
+          // Update position
+          const newX = particle.x + particle.vx;
+          const newY = particle.y + newVy;
 
-      // Draw square
-      ctx.fillStyle = duck.color;
+          // Reduce life
+          const newLife = particle.life - 0.02;
+
+          return {
+            ...particle,
+            x: newX,
+            y: newY,
+            vy: newVy,
+            life: newLife,
+          };
+        })
+        .filter((particle) => particle.life > 0) // Remove dead particles
+    );
+  }
+
+  function drawParticles(ctx: CanvasRenderingContext2D) {
+    particlesRef.current.forEach((particle) => {
+      const alpha = particle.life / particle.maxLife;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = particle.color;
       ctx.fillRect(
-        duck.x - duck.size / 2,
-        duck.y - duck.size / 2,
-        duck.size,
-        duck.size
+        particle.x - particle.size / 2,
+        particle.y - particle.size / 2,
+        particle.size,
+        particle.size
       );
-
-      // Draw border
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(
-        duck.x - duck.size / 2,
-        duck.y - duck.size / 2,
-        duck.size,
-        duck.size
-      );
-
-      // Draw "X" in the center for targeting reference
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 2;
-      const halfSize = duck.size / 4;
-      ctx.beginPath();
-      ctx.moveTo(duck.x - halfSize, duck.y - halfSize);
-      ctx.lineTo(duck.x + halfSize, duck.y + halfSize);
-      ctx.moveTo(duck.x + halfSize, duck.y - halfSize);
-      ctx.lineTo(duck.x - halfSize, duck.y + halfSize);
-      ctx.stroke();
+      ctx.restore();
     });
   }
 
-  function checkCollision(crosshairX: number, crosshairY: number) {
-    let hit = false;
-
+  function updateDuckPhysics(canvasWidth: number, canvasHeight: number) {
     setDucks((prevDucks) =>
       prevDucks.map((duck) => {
         if (!duck.alive) return duck;
 
-        // Check if crosshair is inside the duck's bounding box
-        const isHit =
-          crosshairX >= duck.x - duck.size / 2 &&
-          crosshairX <= duck.x + duck.size / 2 &&
-          crosshairY >= duck.y - duck.size / 2 &&
-          crosshairY <= duck.y + duck.size / 2;
+        let newX = duck.x;
+        let newY = duck.y;
+        let newVx = duck.vx;
+        let newVy = duck.vy;
+        let newHp = duck.hp;
 
-        if (isHit) {
-          hit = true;
-          setScore((prev) => prev + 10);
-          setHitMessage("HIT! +10");
-          setTimeout(() => setHitMessage(null), 500);
-          return { ...duck, alive: false };
+        // Apply black hole physics if fist is detected
+        if (isFistDetectedRef.current && crosshairPositionRef.current) {
+          const blackHoleX = crosshairPositionRef.current.x;
+          const blackHoleY = crosshairPositionRef.current.y;
+
+          // Calculate distance to black hole
+          const dx = blackHoleX - duck.x;
+          const dy = blackHoleY - duck.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Black hole constants
+          const BLACK_HOLE_RADIUS = 150; // Influence radius
+          const KILL_RADIUS = 5; // Instant kill radius (extremely small)
+          const GRAVITY_STRENGTH = 500; // Gravitational constant
+          const MAX_FORCE = 2.0; // Cap force to prevent infinite acceleration
+          const MAX_DAMAGE_PER_FRAME = 0.8; // Cap damage - slower death
+
+          if (distance < BLACK_HOLE_RADIUS) {
+            // Inside black hole influence
+
+            if (distance < KILL_RADIUS) {
+              // Too close - instant kill
+              return { ...duck, alive: false, hp: 0 };
+            }
+
+            // Apply gravitational force: F = k / distance^2
+            let force = GRAVITY_STRENGTH / (distance * distance);
+            force = Math.min(force, MAX_FORCE); // Cap the force
+
+            // Direction towards black hole (normalized)
+            const dirX = dx / distance;
+            const dirY = dy / distance;
+
+            // Apply acceleration (F = ma, assuming mass = 1)
+            newVx += dirX * force;
+            newVy += dirY * force;
+
+            // Apply damage over time (closer = more damage)
+            let damageRate = 2.0 / (distance / 10); // More damage when closer
+            damageRate = Math.min(damageRate, MAX_DAMAGE_PER_FRAME); // Cap damage
+            newHp -= damageRate;
+
+            if (newHp <= 0) {
+              return { ...duck, alive: false, hp: 0 };
+            }
+          }
         }
 
-        return duck;
+        // Update position based on velocity
+        newX += newVx;
+        newY += newVy;
+
+        // Bounce off walls
+        if (newX - duck.size / 2 < 0 || newX + duck.size / 2 > canvasWidth) {
+          newVx = -newVx;
+          newX = Math.max(duck.size / 2, Math.min(canvasWidth - duck.size / 2, newX));
+        }
+        if (newY - duck.size / 2 < 0 || newY + duck.size / 2 > canvasHeight) {
+          newVy = -newVy;
+          newY = Math.max(duck.size / 2, Math.min(canvasHeight - duck.size / 2, newY));
+        }
+
+        // Apply light friction only when black hole is active
+        if (isFistDetectedRef.current) {
+          newVx *= 0.98;
+          newVy *= 0.98;
+        }
+
+        // Maintain minimum speed (keep ducks flying)
+        const currentSpeed = Math.sqrt(newVx * newVx + newVy * newVy);
+        const MIN_SPEED = 2;
+        if (currentSpeed < MIN_SPEED && currentSpeed > 0) {
+          const speedRatio = MIN_SPEED / currentSpeed;
+          newVx *= speedRatio;
+          newVy *= speedRatio;
+        }
+
+        return {
+          ...duck,
+          x: newX,
+          y: newY,
+          vx: newVx,
+          vy: newVy,
+          hp: newHp,
+        };
       })
     );
+  }
 
-    if (!hit) {
-      setHitMessage("MISS!");
-      setTimeout(() => setHitMessage(null), 500);
+  function drawDucks(ctx: CanvasRenderingContext2D) {
+    if (!spritesLoadedRef.current || !planeSprite1Ref.current || !planeSprite2Ref.current) {
+      // Fallback to squares if sprites not loaded
+      return;
     }
+
+    const time = performance.now();
+
+    ducksRef.current.forEach((duck) => {
+      if (!duck.alive) return;
+
+      const hpRatio = duck.hp / duck.maxHp;
+
+      // Animate propeller: alternate between sprite 1 and 2
+      const frameIndex = Math.floor(time / 100) % 2; // Switch every 100ms
+      const sprite = frameIndex === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
+
+      if (!sprite) return;
+
+      ctx.save();
+
+      // Translate to plane position
+      ctx.translate(duck.x, duck.y);
+
+      // Rotate based on velocity direction
+      const angle = Math.atan2(duck.vy, duck.vx);
+      ctx.rotate(angle);
+
+      // Draw plane sprite first
+      ctx.drawImage(
+        sprite,
+        -duck.size / 2,
+        -duck.size / 2,
+        duck.size,
+        duck.size
+      );
+
+      // Apply damage tint ONLY to non-transparent pixels
+      if (hpRatio < 1.0) {
+        const damageAlpha = 0.6 * (1 - hpRatio); // More red when more damaged
+        ctx.globalCompositeOperation = "source-atop"; // Only affects existing pixels
+        ctx.fillStyle = `rgba(255, 0, 0, ${damageAlpha})`;
+        ctx.fillRect(-duck.size / 2, -duck.size / 2, duck.size, duck.size);
+      }
+
+      ctx.restore();
+
+      // Draw HP bar (not rotated)
+      const barWidth = duck.size;
+      const barHeight = 6;
+      const barX = duck.x - barWidth / 2;
+      const barY = duck.y - duck.size / 2 - 12;
+
+      // Background
+      ctx.fillStyle = "#333333";
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      // HP fill
+      ctx.fillStyle = hpRatio > 0.5 ? "#00ff88" : hpRatio > 0.25 ? "#feca57" : "#ff6b6b";
+      ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+
+      // HP bar border
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barWidth, barHeight);
+    });
   }
 
   function detectFist(landmarks: any[], canvasWidth: number, canvasHeight: number) {
@@ -553,32 +925,17 @@ export default function HandTracker() {
     setIsFistDetected(isFist);
 
     if (isFist) {
-      // Fist closed
-      if (
-        !isFistClosedRef.current &&
-        now - lastFireTimeRef.current > FIRE_DEBOUNCE_MS
-      ) {
-        // Fire!
+      // Fist closed - black hole active
+      if (!isFistClosedRef.current) {
         isFistClosedRef.current = true;
-        lastFireTimeRef.current = now;
         setIsFiring(true);
-
-        // Check collision with ducks
-        if (crosshairPositionRef.current) {
-          checkCollision(
-            crosshairPositionRef.current.x,
-            crosshairPositionRef.current.y
-          );
-        }
-
-        // Hide "FIRE!" message after delay
-        setTimeout(() => {
-          setIsFiring(false);
-        }, FIRE_DISPLAY_MS);
       }
     } else {
-      // Fist open - reset state
-      isFistClosedRef.current = false;
+      // Fist open - deactivate black hole
+      if (isFistClosedRef.current) {
+        isFistClosedRef.current = false;
+        setIsFiring(false);
+      }
     }
   }
 
@@ -588,14 +945,14 @@ export default function HandTracker() {
     height: number
   ) {
     ctx.save();
-    ctx.font = "bold 80px system-ui, sans-serif";
-    ctx.fillStyle = "#ff0000";
+    ctx.font = "bold 60px system-ui, sans-serif";
+    ctx.fillStyle = "#8a2be2"; // Purple
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 4;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    const text = "FIRE!";
+    const text = "VOID ACTIVE";
     const x = width / 2;
     const y = height / 2;
 
@@ -668,7 +1025,20 @@ export default function HandTracker() {
           width: "100%",
           height: "100%",
           transform: "scaleX(-1)", // Mirror canvas
-          pointerEvents: "none",
+          pointerEvents: "auto",
+          cursor: "crosshair",
+        }}
+        onClick={async () => {
+          // Initialize audio on first click
+          if (!audioInitializedRef.current) {
+            try {
+              await backgroundMusicRef.current?.play();
+              await engineSoundRef.current?.play();
+              audioInitializedRef.current = true;
+            } catch (e) {
+              console.log("Could not start audio");
+            }
+          }
         }}
       />
 
