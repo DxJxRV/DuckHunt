@@ -602,37 +602,87 @@ export default function HandTracker() {
   ) {
     const time = performance.now() / 1000;
 
-    // Draw multiple pulsing circles for black hole effect
-    for (let i = 0; i < 3; i++) {
-      const radius = 150 - i * 30 + Math.sin(time * 3 + i) * 10;
-      const alpha = 0.3 - i * 0.1;
+    // Draw large pulsing outer glow (see-through)
+    const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150);
+    outerGlow.addColorStop(0, "rgba(138, 43, 226, 0.15)");
+    outerGlow.addColorStop(0.5, "rgba(75, 0, 130, 0.08)");
+    outerGlow.addColorStop(1, "rgba(138, 43, 226, 0)");
+
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(x, y, 150, 0, 2 * Math.PI);
+    ctx.fill();
+
+    // Draw many small spiraling particles (expanded, uniform fill)
+    for (let i = 0; i < 60; i++) {
+      // More variation in angles to avoid pattern grouping
+      const angleOffset = (i * 2.4) + (Math.sin(i * 0.5) * 0.3);
+      const angle = (time * 3 + angleOffset) % (Math.PI * 2);
+
+      // Stagger distances more for uniform distribution
+      const distanceOffset = (i * 2.3) % 140;
+      const distance = 140 - ((time * 80 + distanceOffset) % 140);
+      const spiralOffset = Math.sin(distance / 20 + i * 0.1) * 12;
+
+      const px = x + Math.cos(angle) * (distance + spiralOffset);
+      const py = y + Math.sin(angle) * (distance + spiralOffset);
+      const particleAlpha = (1 - (distance / 140)) * 0.6;
+      const particleSize = 1 + (1 - distance / 140) * 2; // Smaller particles
 
       ctx.beginPath();
-      ctx.arc(x, y, radius, 0, 2 * Math.PI);
-      ctx.strokeStyle = `rgba(138, 43, 226, ${alpha})`; // Purple
-      ctx.lineWidth = 3;
-      ctx.stroke();
+      ctx.arc(px, py, particleSize, 0, 2 * Math.PI);
+      ctx.fillStyle = `rgba(186, 85, 211, ${particleAlpha})`;
+      ctx.fill();
+
+      // Smaller glow
+      if (distance < 70) {
+        ctx.beginPath();
+        ctx.arc(px, py, particleSize * 1.5, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(255, 0, 255, ${particleAlpha * 0.2})`;
+        ctx.fill();
+      }
     }
 
-    // Draw central vortex
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 80);
-    gradient.addColorStop(0, "rgba(75, 0, 130, 0.8)"); // Dark purple center
-    gradient.addColorStop(0.5, "rgba(138, 43, 226, 0.4)");
+    // Draw electric energy lines constantly (not just occasionally)
+    const numArcs = 5 + Math.floor(Math.sin(time * 5) * 2);
+    for (let i = 0; i < numArcs; i++) {
+      const startAngle = time * 2 + i * (Math.PI * 2 / numArcs);
+      const arcRadius = 50 + Math.sin(time * 3 + i) * 20;
+      const arcLength = 0.4 + Math.sin(time * 4 + i) * 0.3;
+
+      ctx.beginPath();
+      ctx.arc(x, y, arcRadius, startAngle, startAngle + arcLength);
+      ctx.strokeStyle = `rgba(186, 85, 211, ${0.4 + Math.sin(time * 6 + i) * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = "rgba(138, 43, 226, 0.8)";
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    // Draw central vortex (larger, more dynamic)
+    const vortexSize = 100 + Math.sin(time * 2) * 10;
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, vortexSize);
+    gradient.addColorStop(0, "rgba(138, 43, 226, 0.7)");
+    gradient.addColorStop(0.2, "rgba(75, 0, 130, 0.5)");
+    gradient.addColorStop(0.5, "rgba(138, 43, 226, 0.3)");
+    gradient.addColorStop(0.8, "rgba(186, 85, 211, 0.15)");
     gradient.addColorStop(1, "rgba(138, 43, 226, 0)");
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(x, y, 80, 0, 2 * Math.PI);
+    ctx.arc(x, y, vortexSize, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw event horizon (kill radius)
+    // Draw bright pulsing core
+    const coreSize = 15 + Math.sin(time * 5) * 5;
     ctx.beginPath();
-    ctx.arc(x, y, 30, 0, 2 * Math.PI);
-    ctx.strokeStyle = "rgba(255, 0, 255, 0.8)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.arc(x, y, coreSize, 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(255, 100, 255, ${0.6 + Math.sin(time * 7) * 0.3})`;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "rgba(255, 0, 255, 0.8)";
+    ctx.fill();
+    ctx.shadowBlur = 0;
   }
 
   function drawCrosshair(
