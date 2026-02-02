@@ -5,6 +5,7 @@ import {
   FilesetResolver,
   HandLandmarker,
   HandLandmarkerResult,
+  FaceDetector,
 } from "@mediapipe/tasks-vision";
 import {
   WASM_FILES_PATH,
@@ -45,6 +46,14 @@ interface Particle {
   color: string;
 }
 
+interface Bullet {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  fromDuckId: number;
+}
+
 export default function HandTracker() {
   // State
   const [status, setStatus] = useState<Status>("initializing");
@@ -53,6 +62,9 @@ export default function HandTracker() {
   const [isFiring, setIsFiring] = useState<boolean>(false);
   const [ducks, setDucks] = useState<Duck[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [playerHp, setPlayerHp] = useState<number>(100);
+  const [gameOver, setGameOver] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [hitMessage, setHitMessage] = useState<string | null>(null);
   const [isFistDetected, setIsFistDetected] = useState<boolean>(false);
@@ -65,8 +77,12 @@ export default function HandTracker() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
+  const faceDetectorRef = useRef<FaceDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Player position (from face detection)
+  const playerPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   // Crosshair position (independent from hand position)
   const crosshairPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -87,6 +103,8 @@ export default function HandTracker() {
   // Ducks ref for access in animation loop
   const ducksRef = useRef<Duck[]>([]);
   const particlesRef = useRef<Particle[]>([]);
+  const bulletsRef = useRef<Bullet[]>([]);
+  const lastShootTimeRef = useRef<Map<number, number>>(new Map());
 
   // Plane sprites
   const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
@@ -190,6 +208,23 @@ export default function HandTracker() {
 
         handLandmarkerRef.current = handLandmarker;
 
+        // Create FaceDetector
+        const faceDetector = await FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+            delegate: "GPU",
+          },
+          runningMode: "VIDEO",
+        });
+
+        if (!mounted) {
+          faceDetector.close();
+          return;
+        }
+
+        faceDetectorRef.current = faceDetector;
+
         // Request camera access
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -272,6 +307,11 @@ export default function HandTracker() {
       if (handLandmarkerRef.current) {
         handLandmarkerRef.current.close();
       }
+
+      // Close face detector
+      if (faceDetectorRef.current) {
+        faceDetectorRef.current.close();
+      }
     };
   }, []);
 
@@ -279,6 +319,11 @@ export default function HandTracker() {
   useEffect(() => {
     particlesRef.current = particles;
   }, [particles]);
+
+  // Sync bullets state to ref
+  useEffect(() => {
+    bulletsRef.current = bullets;
+  }, [bullets]);
 
   // Sync ducks state to ref and update score when ducks die
   useEffect(() => {
@@ -404,17 +449,46 @@ export default function HandTracker() {
         now
       );
 
+      // Detect face position
+      if (faceDetectorRef.current && video) {
+        try {
+          const faceResults = faceDetectorRef.current.detectForVideo(video, now);
+          if (faceResults && faceResults.detections && faceResults.detections.length > 0) {
+            const face = faceResults.detections[0].boundingBox;
+            if (face) {
+              playerPositionRef.current = {
+                x: (face.originX + face.width / 2) * canvas.width,
+                y: (face.originY + face.height / 2) * canvas.height,
+              };
+            }
+          }
+        } catch (e) {
+          console.error("Face detection error:", e);
+        }
+      }
+
+      // Default to center if no face detected
+      if (!playerPositionRef.current) {
+        playerPositionRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+      }
+
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Update bullets
+      updateBullets(canvas.width, canvas.height);
 
       // Update particle physics
       updateParticles();
 
-      // Update duck physics
+      // Update duck physics (includes shooting)
       updateDuckPhysics(canvas.width, canvas.height);
 
-      // Draw particles first (behind ducks)
+      // Draw particles
       drawParticles(ctx);
+
+      // Draw bullets
+      drawBullets(ctx);
 
       // Draw ducks
       drawDucks(ctx);
@@ -517,6 +591,9 @@ export default function HandTracker() {
         isFistClosedRef.current = false;
         setHandsDetected({ right: false, left: false });
       }
+
+      // Draw player shield (on top of everything)
+      drawPlayerShield(ctx);
 
       // Draw "FIRE!" message if firing
       if (isFiring) {
@@ -728,6 +805,87 @@ export default function HandTracker() {
     ctx.fill();
   }
 
+  function updateBullets(canvasWidth: number, canvasHeight: number) {
+    setBullets((prevBullets) =>
+      prevBullets
+        .map((bullet) => {
+          const newX = bullet.x + bullet.vx;
+          const newY = bullet.y + bullet.vy;
+
+          // Check collision with player (center of screen)
+          if (!gameOver) {
+            const shieldX = canvasWidth / 2;
+            const shieldY = canvasHeight / 2;
+            const dx = newX - shieldX;
+            const dy = newY - shieldY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 200) {
+              // Hit player
+              setPlayerHp((prev) => {
+                const newHp = Math.max(0, prev - 1);
+                if (newHp === 0) setGameOver(true);
+                return newHp;
+              });
+              setHitMessage("HIT! -1 HP");
+              setTimeout(() => setHitMessage(null), 500);
+              if (damageSoundRef.current) {
+                damageSoundRef.current.currentTime = 0;
+                damageSoundRef.current.play().catch(() => {});
+              }
+              return null; // Remove bullet
+            }
+          }
+
+          return { ...bullet, x: newX, y: newY };
+        })
+        .filter(
+          (b) =>
+            b !== null &&
+            b.x > 0 &&
+            b.x < canvasWidth &&
+            b.y > 0 &&
+            b.y < canvasHeight
+        ) as Bullet[]
+    );
+  }
+
+  function drawBullets(ctx: CanvasRenderingContext2D) {
+    bulletsRef.current.forEach((bullet) => {
+      ctx.fillStyle = "#ff6b6b";
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 5, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // Glow
+      ctx.fillStyle = "rgba(255, 107, 107, 0.3)";
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 10, 0, 2 * Math.PI);
+      ctx.fill();
+    });
+  }
+
+  function drawPlayerShield(ctx: CanvasRenderingContext2D) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    // Big green circle (WORKS)
+    ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 200, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Text
+    ctx.fillStyle = "#00ff00";
+    ctx.font = "bold 30px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(`HP: ${playerHp}`, centerX, centerY);
+  }
+
   function updateParticles() {
     setParticles((prevParticles) =>
       prevParticles
@@ -859,6 +1017,34 @@ export default function HandTracker() {
           newVy *= speedRatio;
         }
 
+        // Shoot at player (center) occasionally
+        const lastShot = lastShootTimeRef.current.get(duck.id) || 0;
+        const nowTime = Date.now();
+        if (nowTime - lastShot > 3000 && !gameOver) {
+          // Shoot towards center (where shield is)
+          const targetX = canvasWidth / 2;
+          const targetY = canvasHeight / 2;
+
+          const dx = targetX - duck.x;
+          const dy = targetY - duck.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > 0) {
+            const speed = 6;
+            setBullets((prev) => [
+              ...prev,
+              {
+                x: duck.x,
+                y: duck.y,
+                vx: (dx / dist) * speed,
+                vy: (dy / dist) * speed,
+                fromDuckId: duck.id,
+              },
+            ]);
+            lastShootTimeRef.current.set(duck.id, nowTime);
+          }
+        }
+
         return {
           ...duck,
           x: newX,
@@ -914,6 +1100,7 @@ export default function HandTracker() {
         ctx.globalCompositeOperation = "source-atop"; // Only affects existing pixels
         ctx.fillStyle = `rgba(255, 0, 0, ${damageAlpha})`;
         ctx.fillRect(-duck.size / 2, -duck.size / 2, duck.size, duck.size);
+        ctx.globalCompositeOperation = "source-over"; // Reset immediately
       }
 
       ctx.restore();
@@ -1128,6 +1315,13 @@ export default function HandTracker() {
             <div style={{ marginTop: "0.5rem", fontSize: "1rem", color: "#feca57" }}>
               <strong>Score:</strong> {score}
             </div>
+            <div style={{
+              marginTop: "0.5rem",
+              fontSize: "1rem",
+              color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"
+            }}>
+              <strong>HP:</strong> {playerHp}
+            </div>
             <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#888" }}>
               <strong>Ducks:</strong> {ducks.filter((d) => d.alive).length}/
               {ducks.length}
@@ -1148,6 +1342,45 @@ export default function HandTracker() {
           </>
         )}
       </div>
+
+      {/* Game Over screen */}
+      {gameOver && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            padding: "3rem",
+            backgroundColor: "rgba(0, 0, 0, 0.95)",
+            border: "3px solid #ff6b6b",
+            borderRadius: "12px",
+            textAlign: "center",
+            zIndex: 1000,
+          }}
+        >
+          <h2 style={{ color: "#ff6b6b", fontSize: "3rem", marginBottom: "1rem" }}>
+            GAME OVER
+          </h2>
+          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "2rem" }}>
+            Final Score: {score}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "1rem 2rem",
+              fontSize: "1.25rem",
+              backgroundColor: "#ff6b6b",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            Play Again
+          </button>
+        </div>
+      )}
 
       {/* Error message */}
       {status === "error" && (
