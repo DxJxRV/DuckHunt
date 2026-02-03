@@ -1,8 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "DuckHunt - Hand Tracking Game",
-  description: "Hand tracking game using MediaPipe and Next.js",
+  title: "VOID HUNTER - Hand Tracking Defense Game",
+  description: "Hand-powered cosmic defense game. Use your hands to create a black hole and consume enemy planes before they destroy your shield.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -12,6 +19,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <style>{`
+          * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+          }
+
+          html, body {
+            overscroll-behavior: none;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+          }
+        `}</style>
+      </head>
       <body
         style={{
           margin: 0,
@@ -19,6 +42,7 @@ export default function RootLayout({
           fontFamily: "system-ui, -apple-system, sans-serif",
           backgroundColor: "#0a0a0a",
           color: "#ffffff",
+          touchAction: "manipulation",
         }}
       >
         {children}

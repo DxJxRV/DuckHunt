@@ -7,7 +7,7 @@ import {
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
-import { Volume2, VolumeX, Pause, Play } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize } from "lucide-react";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -58,7 +58,7 @@ interface Bullet {
   fromDuckId: number;
 }
 
-export default function HandTracker() {
+export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }) {
   // State
   const [status, setStatus] = useState<Status>("initializing");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,6 +81,9 @@ export default function HandTracker() {
   const [planesKilled, setPlanesKilled] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -159,6 +162,52 @@ export default function HandTracker() {
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
+
+  // Sync isPausedProp to state
+  useEffect(() => {
+    if (isPausedProp !== undefined) {
+      setIsPaused(isPausedProp);
+    }
+  }, [isPausedProp]);
+
+  // Detect orientation and screen size changes
+  useEffect(() => {
+    const checkOrientation = () => {
+      const isPortraitMode = window.matchMedia("(orientation: portrait)").matches;
+      const isMobileSize = window.matchMedia("(max-width: 900px) and (orientation: landscape)").matches;
+      setIsPortrait(isPortraitMode);
+      setIsMobile(isMobileSize);
+    };
+
+    // Check initial state
+    checkOrientation();
+
+    // Listen for changes
+    const orientationQuery = window.matchMedia("(orientation: portrait)");
+    const sizeQuery = window.matchMedia("(max-width: 900px) and (orientation: landscape)");
+
+    const handler = () => checkOrientation();
+
+    orientationQuery.addEventListener("change", handler);
+    sizeQuery.addEventListener("change", handler);
+    window.addEventListener("resize", handler);
+
+    return () => {
+      orientationQuery.removeEventListener("change", handler);
+      sizeQuery.removeEventListener("change", handler);
+      window.removeEventListener("resize", handler);
+    };
+  }, []);
+
+  // Detect fullscreen changes
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -629,6 +678,20 @@ export default function HandTracker() {
 
       return newPausedState;
     });
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } catch (e) {
+      console.log("Could not toggle fullscreen");
+    }
   }
 
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
@@ -1900,140 +1963,245 @@ export default function HandTracker() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: "1280px", margin: "0 auto" }}>
-      {/* HUD Banner - Above video */}
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "1280px",
+        margin: "0 auto",
+      }}
+      className="game-container"
+    >
+      {/* HUD Banner - Above video (desktop) / Right sidebar (mobile) */}
       {status === "ready" && (
         <div
-          style={{
-            display: "flex",
-            gap: "2rem",
-            padding: "1rem 2rem",
-            backgroundColor: "rgba(0, 0, 0, 0.85)",
-            borderRadius: "8px 8px 0 0",
-            fontFamily: "monospace",
-            fontSize: "0.875rem",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
+          className="hud-banner"
+          style={
+            isMobile
+              ? {
+                  position: "fixed",
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: "80px",
+                  height: "100vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "flex-start",
+                  alignItems: "center",
+                  gap: "1.5rem",
+                  padding: "1.5rem 0.5rem",
+                  backgroundColor: "rgba(0, 0, 0, 0.85)",
+                  borderLeft: "2px solid #333",
+                  fontFamily: "monospace",
+                  fontSize: "0.7rem",
+                  zIndex: 100,
+                  overflowY: "auto",
+                }
+              : {
+                  display: "flex",
+                  gap: "2rem",
+                  padding: "1rem 2rem",
+                  backgroundColor: "rgba(0, 0, 0, 0.85)",
+                  borderRadius: "8px 8px 0 0",
+                  fontFamily: "monospace",
+                  fontSize: "0.875rem",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }
+          }
         >
-          {/* FPS & Status */}
-          <div style={{ display: "flex", gap: "1.5rem" }}>
-            <div>
-              <strong>FPS:</strong> <span style={{ color: "#feca57" }}>{fps}</span>
-            </div>
-            <div>
-              <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
-            </div>
-          </div>
+          {/* Fullscreen Button - Mobile only, at top */}
+          {isMobile && (
+            <button
+              onClick={toggleFullscreen}
+              style={{
+                background: "transparent",
+                border: "2px solid #888",
+                borderRadius: "6px",
+                padding: "0.6rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+                color: isFullscreen ? "#feca57" : "#888",
+                minWidth: "48px",
+                minHeight: "48px",
+                width: "100%",
+                maxWidth: "60px",
+              }}
+            >
+              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+            </button>
+          )}
 
-          {/* Planes Killed */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ fontSize: "1.2rem" }}>✈️</span>
-            <span><strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span></span>
-          </div>
+          {/* FPS & Score - Combined in mobile */}
+          {isMobile ? (
+            <div style={{ textAlign: "center", color: "#feca57", fontSize: "0.75rem", fontWeight: "bold" }}>
+              {fps} / {score}
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: "1.5rem" }}>
+              <div>
+                <strong>FPS:</strong> <span style={{ color: "#feca57" }}>{fps}</span>
+              </div>
+              <div>
+                <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+              </div>
+            </div>
+          )}
 
-          {/* HP */}
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ fontSize: "1.2rem" }}>❤️</span>
-            <span>
-              <strong>HP:</strong>{" "}
-              <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
-                {playerHp}
-              </span>
-            </span>
-          </div>
+          {/* Planes Killed & HP - Combined in mobile */}
+          {isMobile ? (
+            <div className="planes-hp-row" style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "1rem", width: "100%" }}>
+              {/* Planes */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
+                <span style={{ fontSize: "1rem" }}>✈️</span>
+                <span style={{ fontSize: "0.65rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
+              </div>
+              {/* HP */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
+                <span style={{ fontSize: "1rem" }}>❤️</span>
+                <span style={{ fontSize: "0.7rem", color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
+                  {playerHp}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Planes Killed */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>✈️</span>
+                <span>
+                  <strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
+                </span>
+              </div>
+
+              {/* HP */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>❤️</span>
+                <span>
+                  <strong>HP:</strong>{" "}
+                  <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
+                    {playerHp}
+                  </span>
+                </span>
+              </div>
+            </>
+          )}
 
           {/* Hands Detection */}
-          <div style={{ display: "flex", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-              <span style={{ fontSize: "1rem" }}>🤚</span>
-              <span style={{ color: handsDetected.right ? "#00ff88" : "#666", fontSize: "0.75rem" }}>
-                {handsDetected.right ? "AIM" : "✗"}
-              </span>
+          {isMobile ? (
+            <div className="hands-row" style={{ display: "flex", flexDirection: "row", gap: "0.8rem", alignItems: "center", justifyContent: "center", width: "100%" }}>
+              {/* Right hand */}
+              <Hand
+                size={22}
+                fill={handsDetected.right ? "#00ff88" : "none"}
+                stroke={handsDetected.right ? "#00ff88" : "#ffffff"}
+                strokeWidth={2}
+              />
+              {/* Left hand */}
+              <Hand
+                size={22}
+                fill={isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "none")}
+                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#ffffff")}
+                strokeWidth={2}
+                style={{ transform: "scaleX(-1)" }}
+              />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-              <span style={{ fontSize: "1rem", transform: "scaleX(-1)", display: "inline-block" }}>🤚</span>
-              <span style={{
-                color: isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#666"),
-                fontSize: "0.75rem"
-              }}>
-                {handsDetected.left ? (isFistDetected ? "FIRE" : "RDY") : "✗"}
-              </span>
+          ) : (
+            <div style={{ display: "flex", gap: "1rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <span style={{ fontSize: "1rem" }}>🤚</span>
+                <span style={{ color: handsDetected.right ? "#00ff88" : "#666", fontSize: "0.75rem" }}>
+                  {handsDetected.right ? "AIM" : "✗"}
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <span style={{ fontSize: "1rem", transform: "scaleX(-1)", display: "inline-block" }}>🤚</span>
+                <span style={{
+                  color: isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#666"),
+                  fontSize: "0.75rem"
+                }}>
+                  {handsDetected.left ? (isFistDetected ? "FIRE" : "RDY") : "✗"}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Controls - Pause & Mute */}
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            {/* Pause/Resume Button */}
-            <button
-              onClick={togglePause}
-              style={{
-                background: "transparent",
-                border: "2px solid #888",
-                borderRadius: "6px",
-                padding: "0.4rem 0.8rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-                transition: "all 0.2s ease",
-                color: isPaused ? "#feca57" : "#00ff88",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#ffffff";
-                e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#888";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              {isPaused ? <Play size={18} /> : <Pause size={18} />}
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
-                {isPaused ? "PAUSED" : "PAUSE"}
-              </span>
-            </button>
-
-            {/* Mute/Unmute Button */}
-            <button
-              onClick={toggleMute}
-              style={{
-                background: "transparent",
-                border: "2px solid #888",
-                borderRadius: "6px",
-                padding: "0.4rem 0.8rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-                transition: "all 0.2s ease",
-                color: isMuted ? "#888" : "#00ff88",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#ffffff";
-                e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#888";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          {/* Mute Button */}
+          <button
+            onClick={toggleMute}
+            style={
+              isMobile
+                ? {
+                    background: "transparent",
+                    border: "2px solid #888",
+                    borderRadius: "6px",
+                    padding: "0.6rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s ease",
+                    color: isMuted ? "#888" : "#00ff88",
+                    minWidth: "48px",
+                    minHeight: "48px",
+                    width: "100%",
+                    maxWidth: "60px",
+                  }
+                : {
+                    background: "transparent",
+                    border: "2px solid #888",
+                    borderRadius: "6px",
+                    padding: "0.4rem 0.8rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    transition: "all 0.2s ease",
+                    color: isMuted ? "#888" : "#00ff88",
+                  }
+            }
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#ffffff";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#888";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            {!isMobile && (
               <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
                 {isMuted ? "MUTED" : "ON"}
               </span>
-            </button>
-          </div>
+            )}
+          </button>
         </div>
       )}
 
       <div
-        style={{
-          position: "relative",
-          display: "inline-block",
-          maxWidth: "100%",
-          maxHeight: "100%",
-        }}
+        className="video-container"
+        style={
+          isMobile
+            ? {
+                position: "relative",
+                display: "inline-block",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                width: "calc(100% - 80px)",
+                marginRight: "80px",
+              }
+            : {
+                position: "relative",
+                display: "inline-block",
+                maxWidth: "100%",
+                maxHeight: "100%",
+                width: "100%",
+              }
+        }
       >
         {/* Video element */}
         <video
@@ -2095,6 +2263,47 @@ export default function HandTracker() {
             </h2>
             <p style={{ fontSize: "1rem", color: "#888", margin: 0 }}>
               Click PAUSE to resume
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Rotate device overlay (Portrait mode) */}
+      {isPortrait && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.95)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+        >
+          <div
+            style={{
+              padding: "2rem",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "5rem",
+                marginBottom: "1.5rem",
+                animation: "rotate-phone 2s ease-in-out infinite",
+              }}
+            >
+              📱
+            </div>
+            <h2 style={{ color: "#feca57", fontSize: "2rem", marginBottom: "1rem" }}>
+              Por favor rota tu dispositivo
+            </h2>
+            <p style={{ fontSize: "1.2rem", color: "#888", margin: 0 }}>
+              Este juego requiere orientación horizontal
             </p>
           </div>
         </div>
@@ -2239,14 +2448,187 @@ export default function HandTracker() {
         </div>
       )}
 
-      {/* CSS animation for loading spinner */}
-      <style jsx>{`
+      {/* CSS animations and responsive styles */}
+      <style jsx global>{`
         @keyframes spin {
           0% {
             transform: rotate(0deg);
           }
           100% {
             transform: rotate(360deg);
+          }
+        }
+
+        @keyframes rotate-phone {
+          0%, 100% {
+            transform: rotate(0deg);
+          }
+          25% {
+            transform: rotate(-15deg);
+          }
+          75% {
+            transform: rotate(15deg);
+          }
+        }
+
+        /* Mobile landscape responsive styles - HUD becomes right sidebar */
+        @media (max-width: 900px) and (orientation: landscape) {
+          .game-container {
+            max-width: 100vw;
+            margin: 0;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+          }
+
+          .hud-banner {
+            position: fixed !important;
+            right: 0 !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            width: 80px !important;
+            height: 100vh !important;
+            max-width: 80px !important;
+            flex-direction: column !important;
+            justify-content: flex-start !important;
+            gap: 1.5rem !important;
+            padding: 1.5rem 0.5rem !important;
+            font-size: 0.7rem !important;
+            border-radius: 0 !important;
+            border-left: 2px solid #333 !important;
+            border-top: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            z-index: 100 !important;
+            overflow-y: auto !important;
+          }
+
+          .hud-banner > div:not(.hands-row):not(.planes-hp-row) {
+            flex-direction: column !important;
+            gap: 0.6rem !important;
+            align-items: center !important;
+            width: 100% !important;
+          }
+
+          .hud-banner .hands-row,
+          .hud-banner .planes-hp-row {
+            flex-direction: row !important;
+          }
+
+          /* Controls container (pause/mute) also vertical */
+          .hud-banner > div:last-of-type {
+            flex-direction: column !important;
+            gap: 0.8rem !important;
+          }
+
+          /* Hide text labels in buttons, show only icons */
+          .hud-banner button span {
+            display: none !important;
+          }
+
+          .hud-banner button {
+            padding: 0.6rem !important;
+            min-width: 48px !important;
+            min-height: 48px !important;
+            gap: 0 !important;
+            width: 100% !important;
+            max-width: 60px !important;
+          }
+
+          /* Hide strong labels, show only values */
+          .hud-banner strong {
+            display: none !important;
+          }
+
+          /* Make icons slightly smaller */
+          .hud-banner span[style*="fontSize: 1.2rem"] {
+            font-size: 1rem !important;
+          }
+
+          .hud-banner span[style*="fontSize: 1rem"] {
+            font-size: 0.85rem !important;
+          }
+
+          /* Adjust video container to account for right sidebar */
+          .video-container {
+            margin-right: 80px !important;
+            width: calc(100% - 80px) !important;
+          }
+        }
+
+        /* Very small mobile devices */
+        @media (max-width: 700px) and (orientation: landscape) {
+          .hud-banner {
+            width: 65px !important;
+            font-size: 0.65rem !important;
+            padding: 1rem 0.4rem !important;
+            gap: 1.2rem !important;
+          }
+
+          .hud-banner > div {
+            gap: 0.5rem !important;
+          }
+
+          .hud-banner button {
+            min-width: 44px !important;
+            min-height: 44px !important;
+            padding: 0.5rem !important;
+            max-width: 55px !important;
+          }
+
+          .video-container {
+            margin-right: 65px !important;
+            width: calc(100% - 65px) !important;
+          }
+        }
+
+        @media (max-width: 500px) and (orientation: landscape) {
+          .hud-banner {
+            width: 55px !important;
+            padding: 0.8rem 0.3rem !important;
+            gap: 1rem !important;
+            font-size: 0.6rem !important;
+          }
+
+          .hud-banner button {
+            min-width: 42px !important;
+            min-height: 42px !important;
+            max-width: 50px !important;
+          }
+
+          .video-container {
+            margin-right: 55px !important;
+            width: calc(100% - 55px) !important;
+          }
+        }
+
+        /* Video container responsive */
+        @media (orientation: landscape) {
+          .video-container {
+            width: 100%;
+            max-width: 100%;
+          }
+
+          .video-container video,
+          .video-container canvas {
+            max-width: 100%;
+            max-height: calc(100vh - 60px);
+            object-fit: contain;
+          }
+        }
+
+        @media (max-width: 900px) and (orientation: landscape) {
+          .video-container video,
+          .video-container canvas {
+            max-height: calc(100vh - 50px);
+            border-radius: 0 !important;
+          }
+        }
+
+        @media (max-width: 700px) and (orientation: landscape) {
+          .video-container video,
+          .video-container canvas {
+            max-height: calc(100vh - 40px);
           }
         }
       `}</style>

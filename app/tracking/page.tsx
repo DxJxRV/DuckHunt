@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { Home, Pause, Play } from "lucide-react";
+import { useState } from "react";
 
 // Import HandTracker dynamically with SSR disabled
 const HandTracker = dynamic(() => import("@/components/HandTracker"), {
@@ -23,6 +24,12 @@ const HandTracker = dynamic(() => import("@/components/HandTracker"), {
 });
 
 export default function TrackingPage() {
+  const [isPaused, setIsPaused] = useState(false);
+
+  const togglePause = () => {
+    setIsPaused((prev) => !prev);
+  };
+
   return (
     <div
       style={{
@@ -30,9 +37,11 @@ export default function TrackingPage() {
         minHeight: "100vh",
         backgroundColor: "#0a0a0a",
       }}
+      className="tracking-page"
     >
       {/* Sidebar */}
       <aside
+        className="sidebar"
         style={{
           width: "80px",
           backgroundColor: "#1a1a1a",
@@ -76,34 +85,40 @@ export default function TrackingPage() {
         {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Back to Home */}
-        <Link
-          href="/"
+        {/* Pause/Resume Button */}
+        <button
+          onClick={togglePause}
           style={{
             width: "50px",
             height: "50px",
             borderRadius: "8px",
-            backgroundColor: "rgba(255, 107, 107, 0.1)",
-            border: "2px solid #ff6b6b",
+            backgroundColor: isPaused
+              ? "rgba(254, 202, 87, 0.2)"
+              : "rgba(255, 107, 107, 0.1)",
+            border: isPaused ? "2px solid #feca57" : "2px solid #ff6b6b",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            textDecoration: "none",
-            color: "#ff6b6b",
+            color: isPaused ? "#feca57" : "#ff6b6b",
+            cursor: "pointer",
             transition: "all 0.3s ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.3)";
+            e.currentTarget.style.backgroundColor = isPaused
+              ? "rgba(254, 202, 87, 0.3)"
+              : "rgba(255, 107, 107, 0.3)";
             e.currentTarget.style.transform = "scale(1.1)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
+            e.currentTarget.style.backgroundColor = isPaused
+              ? "rgba(254, 202, 87, 0.2)"
+              : "rgba(255, 107, 107, 0.1)";
             e.currentTarget.style.transform = "scale(1)";
           }}
-          title="Back to Home"
+          title={isPaused ? "Resume Game" : "Pause Game"}
         >
-          <Home size={24} />
-        </Link>
+          {isPaused ? <Play size={24} /> : <Pause size={24} />}
+        </button>
       </aside>
 
       {/* Main Content */}
@@ -115,8 +130,83 @@ export default function TrackingPage() {
           justifyContent: "center",
         }}
       >
-        <HandTracker />
+        <HandTracker isPausedProp={isPaused} />
       </main>
+
+      {/* Responsive styles */}
+      <style jsx>{`
+        /* Tablet and small desktop */
+        @media (max-width: 900px) and (orientation: landscape) {
+          .sidebar {
+            width: 50px !important;
+            padding: 1rem 0.3rem !important;
+            gap: 1.5rem !important;
+          }
+
+          .sidebar a[title="Back to Home"] {
+            width: 42px !important;
+            height: 42px !important;
+          }
+
+          .sidebar a[title="Back to Home"] :global(svg) {
+            width: 20px !important;
+            height: 20px !important;
+          }
+        }
+
+        /* Mobile landscape */
+        @media (max-width: 700px) and (orientation: landscape) {
+          .sidebar {
+            width: 35px !important;
+            padding: 0.5rem 0.2rem !important;
+            gap: 1rem !important;
+          }
+
+          .sidebar a {
+            font-size: 0.7rem !important;
+          }
+
+          .sidebar a[title="Back to Home"] {
+            width: 35px !important;
+            height: 35px !important;
+          }
+
+          .sidebar a[title="Back to Home"] :global(svg) {
+            width: 18px !important;
+            height: 18px !important;
+          }
+        }
+
+        /* Very small mobile */
+        @media (max-width: 500px) and (orientation: landscape) {
+          .sidebar {
+            width: 30px !important;
+            padding: 0.4rem 0.15rem !important;
+          }
+
+          .sidebar a {
+            font-size: 0.6rem !important;
+            letter-spacing: 0.05em !important;
+          }
+
+          .sidebar a[title="Back to Home"] {
+            width: 30px !important;
+            height: 30px !important;
+          }
+        }
+
+        /* Fullscreen support */
+        @media (orientation: landscape) {
+          .tracking-page {
+            height: 100vh;
+            overflow: hidden;
+          }
+
+          main {
+            height: 100vh;
+          }
+        }
+      `}</style>
     </div>
   );
 }

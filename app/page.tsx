@@ -5,6 +5,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <div
+      className="landing-page"
       style={{
         display: "flex",
         flexDirection: "column",
@@ -145,6 +146,56 @@ export default function Home() {
       >
         Powered by MediaPipe AI · Built with Next.js · Real-time Hand Tracking
       </div>
+
+      {/* Responsive styles */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .landing-page {
+            padding: 1.5rem !important;
+          }
+
+          .landing-page h1 {
+            font-size: 2.5rem !important;
+          }
+
+          .landing-page p {
+            font-size: 1rem !important;
+          }
+
+          .landing-page a {
+            font-size: 1.1rem !important;
+            padding: 1rem 2rem !important;
+          }
+
+          .landing-page > div {
+            max-width: 90% !important;
+            padding: 1.5rem !important;
+          }
+
+          .landing-page ul li {
+            font-size: 0.95rem !important;
+            margin-bottom: 0.5rem !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .landing-page {
+            padding: 1rem !important;
+          }
+
+          .landing-page h1 {
+            font-size: 2rem !important;
+          }
+
+          .landing-page h2 {
+            font-size: 1.3rem !important;
+          }
+
+          .landing-page p {
+            font-size: 0.9rem !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
