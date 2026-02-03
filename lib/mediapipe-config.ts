@@ -30,6 +30,23 @@ export const MAX_PLANES_ALIVE = 5; // Maximum planes flying at once
 export const TOTAL_PLANES = 20; // Total planes to spawn in the game
 export const SPAWN_INTERVAL_MS = 3000; // Time between spawns (3 seconds)
 
+// ROI (Region of Interest) optimization constants
+export const ROI_SCALE = 3.0; // Margin around bounding box (increased for stability)
+export const ROI_SMOOTH_ALPHA = 0.25; // EMA smoothing for ROI movement (lower = smoother)
+export const FULL_RES_WIDTH = 320; // Full frame search resolution width
+export const FULL_RES_HEIGHT = 180; // Full frame search resolution height
+export const ROI_RES = 256; // ROI tracking resolution (square)
+
+// Detection intervals
+export const SEARCH_FULL_INTERVAL = 4; // Detect every N frames in full search (faster reacquire)
+export const TRACK_ROI_INTERVAL = 3; // Detect every N frames in ROI tracking (more frequent)
+export const LOST_THRESHOLD = 8; // Frames without hand before returning to full search (more patient)
+
+// OK gesture (pinch) thresholds
+export const OK_ENTER_THRESHOLD = 0.35; // Normalized distance to activate
+export const OK_EXIT_THRESHOLD = 0.45; // Normalized distance to deactivate
+export const OK_CONFIRM_FRAMES = 3; // Consecutive frames to confirm gesture
+
 // Hand landmark connections for drawing
 // Based on MediaPipe Hand 21 landmarks (0-20)
 export const HAND_CONNECTIONS: [number, number][] = [

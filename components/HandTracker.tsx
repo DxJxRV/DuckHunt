@@ -22,6 +22,17 @@ import {
   MAX_PLANES_ALIVE,
   TOTAL_PLANES,
   SPAWN_INTERVAL_MS,
+  ROI_SCALE,
+  ROI_SMOOTH_ALPHA,
+  FULL_RES_WIDTH,
+  FULL_RES_HEIGHT,
+  ROI_RES,
+  SEARCH_FULL_INTERVAL,
+  TRACK_ROI_INTERVAL,
+  LOST_THRESHOLD,
+  OK_ENTER_THRESHOLD,
+  OK_EXIT_THRESHOLD,
+  OK_CONFIRM_FRAMES,
 } from "@/lib/mediapipe-config";
 
 type Status = "initializing" | "loading" | "ready" | "error";
@@ -57,6 +68,14 @@ interface Bullet {
   vy: number;
   fromDuckId: number;
 }
+
+// Empty result for fallback
+const EMPTY_RESULT: HandLandmarkerResult = {
+  landmarks: [],
+  handednesses: [],
+  worldLandmarks: [],
+  handedness: [],
+};
 
 export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }) {
   // State
@@ -113,6 +132,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   // MediaPipe optimization - skip frames
   const detectionFrameCountRef = useRef<number>(0);
   const lastHandResultRef = useRef<HandLandmarkerResult | null>(null);
+
+  // ROI tracking state machine
+  const roiStateRef = useRef<'SEARCH_FULL' | 'TRACK_ROI'>('SEARCH_FULL');
+  const roiRef = useRef<{x: number, y: number, size: number} | null>(null);
+  const lostFramesRef = useRef<number>(0);
+
+  // OK gesture confirmation
+  const okConfirmFramesRef = useRef<number>(0);
 
   // Fire debounce
   const lastFireTimeRef = useRef<number>(0);
@@ -319,7 +346,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             delegate: "GPU",
           },
           runningMode: "VIDEO",
-          numHands: 2,
+          numHands: 1, // OPTIMIZED: Only right hand (aim + OK gesture)
           minHandDetectionConfidence: 0.7, // Increased from 0.5 for better performance
           minHandPresenceConfidence: 0.7, // Increased from 0.5 for better performance
           minTrackingConfidence: 0.7, // Increased from 0.5 for better performance
@@ -386,10 +413,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
 
-          // Create off-screen detection canvas (DUAL RESOLUTION OPTIMIZATION)
+          // Create off-screen detection canvas (starts as full-frame, switches to ROI)
           const detectionCanvas = document.createElement('canvas');
-          detectionCanvas.width = 640;  // Lower resolution for MediaPipe
-          detectionCanvas.height = 360;
+          detectionCanvas.width = 320;  // Full-frame search resolution
+          detectionCanvas.height = 180;
           detectionCanvasRef.current = detectionCanvas;
 
           // Initialize crosshair at center of canvas
@@ -805,6 +832,64 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     });
   }
 
+  function calculateROI(landmarks: any[]) {
+    // Calculate bounding box from landmarks
+    const xs = landmarks.map((l: any) => l.x);
+    const ys = landmarks.map((l: any) => l.y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    // Center and size
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const size = Math.max(w, h) * ROI_SCALE;
+
+    // Square ROI
+    let roi = {
+      x: Math.max(0, Math.min(1 - size, cx - size / 2)),
+      y: Math.max(0, Math.min(1 - size, cy - size / 2)),
+      size: Math.min(size, 1),
+    };
+
+    // Smooth with EMA
+    if (roiRef.current) {
+      roi.x = roiRef.current.x * (1 - ROI_SMOOTH_ALPHA) + roi.x * ROI_SMOOTH_ALPHA;
+      roi.y = roiRef.current.y * (1 - ROI_SMOOTH_ALPHA) + roi.y * ROI_SMOOTH_ALPHA;
+      roi.size = roiRef.current.size * (1 - ROI_SMOOTH_ALPHA) + roi.size * ROI_SMOOTH_ALPHA;
+    }
+
+    roiRef.current = roi;
+    return roi;
+  }
+
+  function remapROICoordinates(
+    results: HandLandmarkerResult,
+    roi: { x: number; y: number; size: number }
+  ): HandLandmarkerResult {
+    // Convert landmarks from ROI space to global space
+    if (!results.landmarks || results.landmarks.length === 0) {
+      return results;
+    }
+
+    const remappedLandmarks = results.landmarks.map((hand) =>
+      hand.map((landmark) => ({
+        ...landmark,
+        x: roi.x + landmark.x * roi.size,
+        y: roi.y + landmark.y * roi.size,
+      }))
+    );
+
+    return {
+      ...results,
+      landmarks: remappedLandmarks,
+    };
+  }
+
   function detectHands() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -837,37 +922,37 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         return;
       }
 
-      // Detect hand landmarks (OPTIMIZED: MediaPipe every 3 frames, optical flow between)
+      // Simplified detection (ROI temporarily disabled for debugging)
       detectionFrameCountRef.current++;
-      const shouldDetect = detectionFrameCountRef.current % 3 === 0;
 
       let results: HandLandmarkerResult;
       const t1 = performance.now();
 
+      // Detect every 3 frames (simple skip, no ROI)
+      const shouldDetect = detectionFrameCountRef.current % 3 === 0;
+
       if (shouldDetect) {
-        // DUAL RESOLUTION: Draw video to low-res canvas for detection
+        // Simple full-frame detection (ROI disabled for stability)
         const detectionCanvas = detectionCanvasRef.current;
         if (detectionCanvas) {
           const detectionCtx = detectionCanvas.getContext('2d');
           if (detectionCtx) {
-            detectionCtx.drawImage(video, 0, 0, 640, 360);
-
-            // Run detection on low-res canvas
+            detectionCtx.drawImage(video, 0, 0, FULL_RES_WIDTH, FULL_RES_HEIGHT);
             results = handLandmarker.detectForVideo(detectionCanvas, now);
-            lastHandResultRef.current = results; // Cache result
+            lastHandResultRef.current = results;
             timings.mediapipe = performance.now() - t1;
           } else {
-            results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
+            results = lastHandResultRef.current || EMPTY_RESULT;
             timings.mediapipe = 0;
           }
         } else {
-          results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
+          results = lastHandResultRef.current || EMPTY_RESULT;
           timings.mediapipe = 0;
         }
       } else {
-        // Skip detection, use cached MediaPipe result
-        results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
-        timings.mediapipe = 0; // Skipped
+        // Skip detection, use cached result
+        results = lastHandResultRef.current || EMPTY_RESULT;
+        timings.mediapipe = 0;
       }
 
       // Initialize shield position on first frame
@@ -963,50 +1048,28 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         spawnFactoryParticles();
       }
 
-      // Draw hand landmarks and process both hands
+      // Process single hand (right hand for aim + OK gesture)
       const t10 = performance.now();
       if (results.landmarks && results.landmarks.length > 0) {
-        let rightHandLandmarks = null;
-        let leftHandLandmarks = null;
+        const handLandmarks = results.landmarks[0]; // First (and only) hand
 
-        // Identify which hand is which based on handedness
-        results.landmarks.forEach((landmarks, index) => {
-          const handedness = results.handednesses?.[index]?.[0];
-          const handLabel = handedness?.categoryName;
+        // Draw hand
+        drawConnections(ctx, handLandmarks, canvas.width, canvas.height);
+        drawLandmarks(ctx, handLandmarks, canvas.width, canvas.height);
 
-          // Draw all hands
-          drawConnections(ctx, landmarks, canvas.width, canvas.height);
-          drawLandmarks(ctx, landmarks, canvas.width, canvas.height);
-
-          // Assign to right or left hand
-          if (handLabel === "Right") {
-            rightHandLandmarks = landmarks;
-          } else if (handLabel === "Left") {
-            leftHandLandmarks = landmarks;
-          }
-        });
-
-        // Update hands detected state
+        // Update hands detected state (always right hand now)
         setHandsDetected({
-          right: rightHandLandmarks !== null,
-          left: leftHandLandmarks !== null,
+          right: true,
+          left: false,
         });
 
-        // LEFT HAND: Controls shooting (fist detection) - PROCESS FIRST
-        if (leftHandLandmarks) {
-          detectFist(leftHandLandmarks, canvas.width, canvas.height);
-        } else {
-          // No left hand detected - reset fist state
-          isFistDetectedRef.current = false;
-          setIsFistDetected(false);
-          isFistClosedRef.current = false;
-        }
+        // Detect OK gesture (replaces fist detection)
+        detectOKGesture(handLandmarks);
 
-        // RIGHT HAND: Controls aiming (finger direction)
-        // Only move crosshair when NOT firing (freeze on shot)
-        if (rightHandLandmarks && crosshairPositionRef.current && !isFistDetectedRef.current) {
-          const wrist = rightHandLandmarks[LANDMARKS.WRIST];
-          const middleTip = rightHandLandmarks[LANDMARKS.MIDDLE_FINGER_TIP];
+        // Update crosshair aim (freeze when OK gesture active)
+        if (crosshairPositionRef.current && !isFistDetectedRef.current) {
+          const wrist = handLandmarks[LANDMARKS.WRIST];
+          const middleTip = handLandmarks[LANDMARKS.MIDDLE_FINGER_TIP];
 
           // Direction vector (where fingers are pointing)
           const directionX = middleTip.x - wrist.x;
@@ -1941,49 +2004,62 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     });
   }
 
-  function detectFist(landmarks: any[], canvasWidth: number, canvasHeight: number) {
-    // Detect closed fist by checking if fingertips are close to palm/wrist
-    const wrist = landmarks[LANDMARKS.WRIST];
+  function detectOKGesture(landmarks: any[]) {
+    // Detect OK gesture (pinch) with normalized distance and hysteresis
+    const thumbTip = landmarks[LANDMARKS.THUMB_TIP];
     const indexTip = landmarks[LANDMARKS.INDEX_FINGER_TIP];
-    const middleTip = landmarks[LANDMARKS.MIDDLE_FINGER_TIP];
-    const ringTip = landmarks[LANDMARKS.RING_FINGER_TIP];
-    const pinkyTip = landmarks[LANDMARKS.PINKY_TIP];
+    const wrist = landmarks[LANDMARKS.WRIST];
+    const indexMcp = landmarks[LANDMARKS.INDEX_FINGER_MCP];
 
-    // Calculate distances from fingertips to wrist
-    const indexDist = Math.sqrt(
-      Math.pow(indexTip.x - wrist.x, 2) + Math.pow(indexTip.y - wrist.y, 2)
-    );
-    const middleDist = Math.sqrt(
-      Math.pow(middleTip.x - wrist.x, 2) + Math.pow(middleTip.y - wrist.y, 2)
-    );
-    const ringDist = Math.sqrt(
-      Math.pow(ringTip.x - wrist.x, 2) + Math.pow(ringTip.y - wrist.y, 2)
-    );
-    const pinkyDist = Math.sqrt(
-      Math.pow(pinkyTip.x - wrist.x, 2) + Math.pow(pinkyTip.y - wrist.y, 2)
+    // Calculate pinch distance
+    const distance = Math.sqrt(
+      Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2)
     );
 
-    // Fist threshold: when all fingertips are close to wrist
-    const isFist =
-      indexDist < FIST_THRESHOLD &&
-      middleDist < FIST_THRESHOLD &&
-      ringDist < FIST_THRESHOLD &&
-      pinkyDist < FIST_THRESHOLD;
+    // Reference scale (hand size)
+    const scale = Math.sqrt(
+      Math.pow(wrist.x - indexMcp.x, 2) + Math.pow(wrist.y - indexMcp.y, 2)
+    );
 
-    const now = Date.now();
+    const distNorm = distance / Math.max(scale, 0.01); // Avoid division by zero
 
-    // Update visual indicator (both ref and state)
-    isFistDetectedRef.current = isFist;
-    setIsFistDetected(isFist);
+    // Hysteresis thresholds
+    let isOK = false;
 
-    if (isFist) {
-      // Fist closed - black hole active
+    if (!isFistDetectedRef.current) {
+      // Currently inactive, check for activation
+      if (distNorm < OK_ENTER_THRESHOLD) {
+        okConfirmFramesRef.current++;
+        if (okConfirmFramesRef.current >= OK_CONFIRM_FRAMES) {
+          isOK = true;
+        }
+      } else {
+        okConfirmFramesRef.current = 0;
+      }
+    } else {
+      // Currently active, check for deactivation
+      if (distNorm > OK_EXIT_THRESHOLD) {
+        okConfirmFramesRef.current++;
+        if (okConfirmFramesRef.current >= OK_CONFIRM_FRAMES) {
+          isOK = false;
+          okConfirmFramesRef.current = 0;
+        }
+      } else {
+        okConfirmFramesRef.current = 0;
+        isOK = true;
+      }
+    }
+
+    // Update state
+    isFistDetectedRef.current = isOK;
+    setIsFistDetected(isOK);
+
+    if (isOK) {
       if (!isFistClosedRef.current) {
         isFistClosedRef.current = true;
         setIsFiring(true);
       }
     } else {
-      // Fist open - deactivate black hole
       if (isFistClosedRef.current) {
         isFistClosedRef.current = false;
         setIsFiring(false);
