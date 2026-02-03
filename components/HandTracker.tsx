@@ -7,6 +7,7 @@ import {
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
+import { Volume2, VolumeX, Pause, Play } from "lucide-react";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -79,6 +80,7 @@ export default function HandTracker() {
   const [totalSpawned, setTotalSpawned] = useState<number>(0);
   const [planesKilled, setPlanesKilled] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(true);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -146,11 +148,17 @@ export default function HandTracker() {
   const explosionSoundRef = useRef<HTMLAudioElement | null>(null);
   const audioInitializedRef = useRef<boolean>(false);
   const isMutedRef = useRef<boolean>(true);
+  const isPausedRef = useRef<boolean>(false);
 
   // Sync isMuted state to ref
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
+
+  // Sync isPaused state to ref
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     let mounted = true;
@@ -602,6 +610,27 @@ export default function HandTracker() {
     }
   }
 
+  function togglePause() {
+    setIsPaused((prev) => {
+      const newPausedState = !prev;
+
+      // Pause/resume audio when pausing/resuming game (only if not muted)
+      if (!isMutedRef.current && audioInitializedRef.current) {
+        if (newPausedState) {
+          // Pausing game - pause audio
+          backgroundMusicRef.current?.pause();
+          engineSoundRef.current?.pause();
+        } else {
+          // Resuming game - resume audio
+          backgroundMusicRef.current?.play().catch(() => {});
+          engineSoundRef.current?.play().catch(() => {});
+        }
+      }
+
+      return newPausedState;
+    });
+  }
+
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
     // Don't spawn any ducks initially - they'll spawn from factory
     setDucks([]);
@@ -714,6 +743,21 @@ export default function HandTracker() {
 
     const detect = () => {
       const now = performance.now();
+
+      // If paused, just redraw and continue loop
+      if (isPausedRef.current) {
+        // Clear and redraw current state without updating
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawParticles(ctx);
+        drawBullets(ctx);
+        drawDucks(ctx);
+        drawFactory(ctx, canvas.width, canvas.height);
+        drawPlayerShield(ctx);
+
+        animationFrameRef.current = requestAnimationFrame(detect);
+        return;
+      }
 
       // Detect hand landmarks
       const results: HandLandmarkerResult = handLandmarker.detectForVideo(
@@ -1899,36 +1943,6 @@ export default function HandTracker() {
             </span>
           </div>
 
-          {/* Mute/Unmute Button */}
-          <button
-            onClick={toggleMute}
-            style={{
-              background: "transparent",
-              border: "2px solid #888",
-              borderRadius: "6px",
-              padding: "0.4rem 0.8rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.3rem",
-              transition: "all 0.2s ease",
-              color: isMuted ? "#888" : "#00ff88",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#ffffff";
-              e.currentTarget.style.transform = "scale(1.05)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#888";
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-          >
-            <span style={{ fontSize: "1.2rem" }}>{isMuted ? "🔇" : "🔊"}</span>
-            <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
-              {isMuted ? "MUTED" : "ON"}
-            </span>
-          </button>
-
           {/* Hands Detection */}
           <div style={{ display: "flex", gap: "1rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
@@ -1946,6 +1960,69 @@ export default function HandTracker() {
                 {handsDetected.left ? (isFistDetected ? "FIRE" : "RDY") : "✗"}
               </span>
             </div>
+          </div>
+
+          {/* Controls - Pause & Mute */}
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {/* Pause/Resume Button */}
+            <button
+              onClick={togglePause}
+              style={{
+                background: "transparent",
+                border: "2px solid #888",
+                borderRadius: "6px",
+                padding: "0.4rem 0.8rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                transition: "all 0.2s ease",
+                color: isPaused ? "#feca57" : "#00ff88",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#ffffff";
+                e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#888";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {isPaused ? <Play size={18} /> : <Pause size={18} />}
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
+                {isPaused ? "PAUSED" : "PAUSE"}
+              </span>
+            </button>
+
+            {/* Mute/Unmute Button */}
+            <button
+              onClick={toggleMute}
+              style={{
+                background: "transparent",
+                border: "2px solid #888",
+                borderRadius: "6px",
+                padding: "0.4rem 0.8rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                transition: "all 0.2s ease",
+                color: isMuted ? "#888" : "#00ff88",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#ffffff";
+                e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#888";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
+                {isMuted ? "MUTED" : "ON"}
+              </span>
+            </button>
           </div>
         </div>
       )}
@@ -1987,6 +2064,41 @@ export default function HandTracker() {
           cursor: "crosshair",
         }}
       />
+
+      {/* Pause overlay */}
+      {isPaused && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 500,
+          }}
+        >
+          <div
+            style={{
+              padding: "2rem 3rem",
+              backgroundColor: "rgba(26, 26, 30, 0.95)",
+              border: "3px solid #feca57",
+              borderRadius: "12px",
+              textAlign: "center",
+            }}
+          >
+            <h2 style={{ color: "#feca57", fontSize: "3rem", marginBottom: "0.5rem" }}>
+              ⏸️ PAUSED
+            </h2>
+            <p style={{ fontSize: "1rem", color: "#888", margin: 0 }}>
+              Click PAUSE to resume
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Victory screen */}
       {victory && (
