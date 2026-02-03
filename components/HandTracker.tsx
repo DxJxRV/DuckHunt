@@ -88,6 +88,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const detectionCanvasRef = useRef<HTMLCanvasElement | null>(null); // Off-screen canvas for low-res MediaPipe detection
   const handLandmarkerRef = useRef<HandLandmarker | null>(null);
   const faceDetectorRef = useRef<FaceDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -384,6 +385,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         if (canvas) {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
+
+          // Create off-screen detection canvas (DUAL RESOLUTION OPTIMIZATION)
+          const detectionCanvas = document.createElement('canvas');
+          detectionCanvas.width = 640;  // Lower resolution for MediaPipe
+          detectionCanvas.height = 360;
+          detectionCanvasRef.current = detectionCanvas;
 
           // Initialize crosshair at center of canvas
           crosshairPositionRef.current = {
@@ -830,20 +837,35 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         return;
       }
 
-      // Detect hand landmarks (OPTIMIZED: Skip every other frame)
+      // Detect hand landmarks (OPTIMIZED: MediaPipe every 3 frames, optical flow between)
       detectionFrameCountRef.current++;
-      const shouldDetect = detectionFrameCountRef.current % 2 === 0;
+      const shouldDetect = detectionFrameCountRef.current % 3 === 0;
 
       let results: HandLandmarkerResult;
       const t1 = performance.now();
 
       if (shouldDetect) {
-        // Run detection on even frames
-        results = handLandmarker.detectForVideo(video, now);
-        lastHandResultRef.current = results; // Cache result
-        timings.mediapipe = performance.now() - t1;
+        // DUAL RESOLUTION: Draw video to low-res canvas for detection
+        const detectionCanvas = detectionCanvasRef.current;
+        if (detectionCanvas) {
+          const detectionCtx = detectionCanvas.getContext('2d');
+          if (detectionCtx) {
+            detectionCtx.drawImage(video, 0, 0, 640, 360);
+
+            // Run detection on low-res canvas
+            results = handLandmarker.detectForVideo(detectionCanvas, now);
+            lastHandResultRef.current = results; // Cache result
+            timings.mediapipe = performance.now() - t1;
+          } else {
+            results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
+            timings.mediapipe = 0;
+          }
+        } else {
+          results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
+          timings.mediapipe = 0;
+        }
       } else {
-        // Skip detection on odd frames, use cached result
+        // Skip detection, use cached MediaPipe result
         results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
         timings.mediapipe = 0; // Skipped
       }
