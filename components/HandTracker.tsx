@@ -119,11 +119,24 @@ export default function HandTracker() {
   const factoryProgressRef = useRef<number>(0); // 0 to 1 progress of current plane being built
   const totalSpawnedRef = useRef<number>(0);
   const planesKilledRef = useRef<number>(0);
+  const factoryPositionRef = useRef<{ x: number; y: number; corner: number } | null>(null);
 
   // Plane sprites
   const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
   const planeSprite2Ref = useRef<HTMLImageElement | null>(null);
   const spritesLoadedRef = useRef<boolean>(false);
+
+  // Factory sprites
+  const factorySprite1Ref = useRef<HTMLImageElement | null>(null);
+  const factorySprite2Ref = useRef<HTMLImageElement | null>(null);
+  const factorySpritesLoadedRef = useRef<boolean>(false);
+
+  // Shield sprites (angel → demon transformation)
+  const shieldSprite1Ref = useRef<HTMLImageElement | null>(null); // 75-100% HP
+  const shieldSprite2Ref = useRef<HTMLImageElement | null>(null); // 50-75% HP
+  const shieldSprite3Ref = useRef<HTMLImageElement | null>(null); // 25-50% HP
+  const shieldSprite4Ref = useRef<HTMLImageElement | null>(null); // 0-25% HP
+  const shieldSpritesLoadedRef = useRef<boolean>(false);
 
   // Audio
   const backgroundMusicRef = useRef<HTMLAudioElement | null>(null);
@@ -139,18 +152,46 @@ export default function HandTracker() {
     const loadSprites = async () => {
       const img1 = new Image();
       const img2 = new Image();
+      const factory1 = new Image();
+      const factory2 = new Image();
+      const shield1 = new Image();
+      const shield2 = new Image();
+      const shield3 = new Image();
+      const shield4 = new Image();
 
       img1.src = "/sprites/plane-1.png";
       img2.src = "/sprites/plane-2.png";
+      factory1.src = "/sprites/factory-1.png";
+      factory2.src = "/sprites/factory-2.png";
+      shield1.src = "/sprites/shield-1.png";
+      shield2.src = "/sprites/shield-2.png";
+      shield3.src = "/sprites/shield-3.png";
+      shield4.src = "/sprites/shield-4.png";
 
       await Promise.all([
-        new Promise((resolve) => { img1.onload = resolve; }),
-        new Promise((resolve) => { img2.onload = resolve; }),
+        new Promise((resolve) => { img1.onload = resolve; img1.onerror = resolve; }),
+        new Promise((resolve) => { img2.onload = resolve; img2.onerror = resolve; }),
+        new Promise((resolve) => { factory1.onload = resolve; factory1.onerror = resolve; }),
+        new Promise((resolve) => { factory2.onload = resolve; factory2.onerror = resolve; }),
+        new Promise((resolve) => { shield1.onload = resolve; shield1.onerror = resolve; }),
+        new Promise((resolve) => { shield2.onload = resolve; shield2.onerror = resolve; }),
+        new Promise((resolve) => { shield3.onload = resolve; shield3.onerror = resolve; }),
+        new Promise((resolve) => { shield4.onload = resolve; shield4.onerror = resolve; }),
       ]);
 
       planeSprite1Ref.current = img1;
       planeSprite2Ref.current = img2;
       spritesLoadedRef.current = true;
+
+      factorySprite1Ref.current = factory1;
+      factorySprite2Ref.current = factory2;
+      factorySpritesLoadedRef.current = true;
+
+      shieldSprite1Ref.current = shield1;
+      shieldSprite2Ref.current = shield2;
+      shieldSprite3Ref.current = shield3;
+      shieldSprite4Ref.current = shield4;
+      shieldSpritesLoadedRef.current = true;
     };
 
     // Load audio files
@@ -414,6 +455,51 @@ export default function HandTracker() {
     }
   }, [ducks]);
 
+  function spawnFactoryParticles() {
+    if (!factoryPositionRef.current) return;
+
+    const factoryX = factoryPositionRef.current.x + 100; // Center (double size)
+    const factoryY = factoryPositionRef.current.y - 10; // Top of factory (chimney position)
+
+    const newParticles: Particle[] = [];
+
+    // Spawn 2-4 particles
+    const particleCount = 2 + Math.floor(Math.random() * 3);
+
+    for (let i = 0; i < particleCount; i++) {
+      const isSmoke = Math.random() > 0.3; // 70% smoke, 30% sparks
+
+      if (isSmoke) {
+        // Smoke particle (gray, goes up slowly)
+        newParticles.push({
+          x: factoryX + (Math.random() - 0.5) * 30,
+          y: factoryY,
+          vx: (Math.random() - 0.5) * 0.5, // Slight horizontal drift
+          vy: -0.5 - Math.random() * 0.5, // Goes up
+          life: 1.0,
+          maxLife: 1.0,
+          size: 4 + Math.random() * 4,
+          color: `rgba(150, 150, 150, ${0.4 + Math.random() * 0.3})`,
+        });
+      } else {
+        // Spark particle (yellow/orange, goes up fast)
+        const sparkColor = Math.random() > 0.5 ? "#feca57" : "#ff9f43";
+        newParticles.push({
+          x: factoryX + (Math.random() - 0.5) * 20,
+          y: factoryY + 10,
+          vx: (Math.random() - 0.5) * 2,
+          vy: -1 - Math.random() * 2, // Goes up fast
+          life: 1.0,
+          maxLife: 1.0,
+          size: 2 + Math.random() * 2,
+          color: sparkColor,
+        });
+      }
+    }
+
+    setParticles((prev) => [...prev, ...newParticles]);
+  }
+
   function createExplosionParticles(x: number, y: number) {
     const newParticles: Particle[] = [];
     const colors = ["#ff6b6b", "#ff9f43", "#feca57", "#888888", "#444444"];
@@ -449,18 +535,73 @@ export default function HandTracker() {
     planesKilledRef.current = 0;
     lastSpawnTimeRef.current = performance.now();
     factoryProgressRef.current = 0;
-    console.log("Duck spawning system initialized");
+
+    // Choose random corner for factory (0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right)
+    const corner = Math.floor(Math.random() * 4);
+    const margin = 50;
+    const factoryWidth = 200; // Double size (was 100)
+    const factoryHeight = 160; // Double size (was 80)
+
+    let factoryX, factoryY;
+    switch (corner) {
+      case 0: // Top-left
+        factoryX = margin;
+        factoryY = margin;
+        break;
+      case 1: // Top-right
+        factoryX = canvasWidth - margin - factoryWidth;
+        factoryY = margin;
+        break;
+      case 2: // Bottom-left
+        factoryX = margin;
+        factoryY = canvasHeight - margin - factoryHeight - 40; // Extra space for progress bar
+        break;
+      case 3: // Bottom-right
+        factoryX = canvasWidth - margin - factoryWidth;
+        factoryY = canvasHeight - margin - factoryHeight - 40;
+        break;
+      default:
+        factoryX = margin;
+        factoryY = margin;
+    }
+
+    factoryPositionRef.current = { x: factoryX, y: factoryY, corner };
+    console.log(`Factory initialized at corner ${corner}: (${factoryX}, ${factoryY})`);
   }
 
   function spawnDuck(canvasWidth: number, canvasHeight: number) {
     const colors = ["#ff6b6b", "#4ecdc4", "#feca57", "#ff9ff3", "#48dbfb"];
 
-    // Factory position (top-left corner)
-    const factoryX = 100;
-    const factoryY = 100;
+    if (!factoryPositionRef.current) return;
 
-    // Spawn with velocity away from factory (towards center-right)
-    const angle = Math.PI / 4 + (Math.random() - 0.5) * 0.5; // 45° ± variance
+    // Factory position and spawn point (center of factory)
+    const factoryX = factoryPositionRef.current.x + 100; // Center of factory (double size)
+    const factoryY = factoryPositionRef.current.y + 80;
+    const corner = factoryPositionRef.current.corner;
+
+    // Base angle depends on corner (shoot towards opposite side)
+    let baseAngle;
+    switch (corner) {
+      case 0: // Top-left → shoot towards bottom-right
+        baseAngle = Math.PI / 4; // 45°
+        break;
+      case 1: // Top-right → shoot towards bottom-left
+        baseAngle = (3 * Math.PI) / 4; // 135°
+        break;
+      case 2: // Bottom-left → shoot towards top-right
+        baseAngle = -Math.PI / 4; // -45°
+        break;
+      case 3: // Bottom-right → shoot towards top-left
+        baseAngle = (-3 * Math.PI) / 4; // -135°
+        break;
+      default:
+        baseAngle = Math.PI / 4;
+    }
+
+    // Add random spread (cone of ±30 degrees = ±0.524 radians)
+    const spreadAngle = (Math.random() - 0.5) * 1.047; // ±30 degrees
+    const angle = baseAngle + spreadAngle;
+
     const speed = 3 + Math.random() * 2; // 3-5 pixels per frame
 
     const newDuck: Duck = {
@@ -570,6 +711,11 @@ export default function HandTracker() {
 
       // Draw factory
       drawFactory(ctx, canvas.width, canvas.height);
+
+      // Spawn factory particles (smoke/sparks) when building
+      if (canBuildMore && Math.random() > 0.85) {
+        spawnFactoryParticles();
+      }
 
       // Draw hand landmarks and process both hands
       if (results.landmarks && results.landmarks.length > 0) {
@@ -948,28 +1094,60 @@ export default function HandTracker() {
     canvasWidth: number,
     canvasHeight: number
   ) {
-    const factoryX = 50;
-    const factoryY = 50;
-    const factoryWidth = 100;
-    const factoryHeight = 80;
+    if (!factoryPositionRef.current) return;
 
-    // Factory building (rectangle with angled roof)
-    ctx.fillStyle = "#2c3e50";
-    ctx.fillRect(factoryX, factoryY, factoryWidth, factoryHeight);
+    const factoryX = factoryPositionRef.current.x;
+    const factoryY = factoryPositionRef.current.y;
+    const factoryWidth = 200; // Double size
+    const factoryHeight = 160; // Double size
+    const corner = factoryPositionRef.current.corner;
 
-    // Factory roof (triangle)
-    ctx.fillStyle = "#34495e";
-    ctx.beginPath();
-    ctx.moveTo(factoryX - 10, factoryY); // Left edge
-    ctx.lineTo(factoryX + factoryWidth + 10, factoryY); // Right edge
-    ctx.lineTo(factoryX + factoryWidth / 2, factoryY - 30); // Top point
-    ctx.closePath();
-    ctx.fill();
+    const canBuild =
+      ducksRef.current.filter((d) => d.alive).length < MAX_PLANES_ALIVE &&
+      totalSpawnedRef.current < TOTAL_PLANES;
 
-    // Factory border
-    ctx.strokeStyle = "#1a252f";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(factoryX, factoryY, factoryWidth, factoryHeight);
+    // Draw factory sprite if loaded, otherwise fallback to shapes
+    if (factorySpritesLoadedRef.current && factorySprite1Ref.current && factorySprite2Ref.current) {
+      const time = performance.now();
+      // Animate when building (switch every 200ms)
+      const frameIndex = canBuild ? Math.floor(time / 200) % 2 : 0;
+      const sprite = frameIndex === 0 ? factorySprite1Ref.current : factorySprite2Ref.current;
+
+      // Apply transformations based on corner (flip sprite so door faces spawn direction)
+      ctx.save();
+
+      // Translate to factory center
+      ctx.translate(factoryX + factoryWidth / 2, factoryY + factoryHeight / 2);
+
+      // Flip horizontal only when factory is on right side (corners 1 and 3)
+      if (corner === 1 || corner === 3) {
+        ctx.scale(-1, 1); // Flip horizontal so door faces inward
+      }
+
+      // Draw sprite centered
+      ctx.drawImage(sprite, -factoryWidth / 2, -factoryHeight / 2, factoryWidth, factoryHeight);
+
+      ctx.restore();
+    } else {
+      // Fallback: draw simple shapes
+      // Factory building (rectangle with angled roof)
+      ctx.fillStyle = "#2c3e50";
+      ctx.fillRect(factoryX, factoryY, factoryWidth, factoryHeight);
+
+      // Factory roof (triangle)
+      ctx.fillStyle = "#34495e";
+      ctx.beginPath();
+      ctx.moveTo(factoryX - 10, factoryY); // Left edge
+      ctx.lineTo(factoryX + factoryWidth + 10, factoryY); // Right edge
+      ctx.lineTo(factoryX + factoryWidth / 2, factoryY - 30); // Top point
+      ctx.closePath();
+      ctx.fill();
+
+      // Factory border
+      ctx.strokeStyle = "#1a252f";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(factoryX, factoryY, factoryWidth, factoryHeight);
+    }
 
     // Progress bar
     const barWidth = 80;
@@ -983,10 +1161,6 @@ export default function HandTracker() {
 
     // Progress bar fill
     const progress = factoryProgressRef.current;
-    const canBuild =
-      ducksRef.current.filter((d) => d.alive).length < MAX_PLANES_ALIVE &&
-      totalSpawnedRef.current < TOTAL_PLANES;
-
     ctx.fillStyle = canBuild ? "#3498db" : "#95a5a6";
     ctx.fillRect(barX, barY, barWidth * progress, barHeight);
 
@@ -1019,6 +1193,7 @@ export default function HandTracker() {
     const shieldX = shieldPositionRef.current.x;
     const shieldY = shieldPositionRef.current.y;
     const shieldRadius = 80;
+    const shieldSize = 160; // Size for sprite (2x radius)
 
     // HP bar above shield (thin bar, no text)
     const barWidth = 160;
@@ -1040,12 +1215,42 @@ export default function HandTracker() {
     ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-    // Shield circle
-    ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(shieldX, shieldY, shieldRadius, 0, 2 * Math.PI);
-    ctx.stroke();
+    // Draw shield sprite based on HP, or fallback to circle
+    if (
+      shieldSpritesLoadedRef.current &&
+      shieldSprite1Ref.current &&
+      shieldSprite2Ref.current &&
+      shieldSprite3Ref.current &&
+      shieldSprite4Ref.current
+    ) {
+      // Select sprite based on HP percentage
+      let sprite;
+      if (hpRatio > 0.75) {
+        sprite = shieldSprite1Ref.current; // Angel happy (75-100%)
+      } else if (hpRatio > 0.5) {
+        sprite = shieldSprite2Ref.current; // Angel distressed (50-75%)
+      } else if (hpRatio > 0.25) {
+        sprite = shieldSprite3Ref.current; // Demon revealing (25-50%)
+      } else {
+        sprite = shieldSprite4Ref.current; // Full demon (0-25%)
+      }
+
+      // Draw sprite centered on shield position
+      ctx.drawImage(
+        sprite,
+        shieldX - shieldSize / 2,
+        shieldY - shieldSize / 2,
+        shieldSize,
+        shieldSize
+      );
+    } else {
+      // Fallback: draw simple green circle
+      ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(shieldX, shieldY, shieldRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+    }
   }
 
   function updateParticles() {
