@@ -18,6 +18,9 @@ import {
   LANDMARKS,
   CROSSHAIR_SENSITIVITY,
   CROSSHAIR_DEADZONE,
+  MAX_PLANES_ALIVE,
+  TOTAL_PLANES,
+  SPAWN_INTERVAL_MS,
 } from "@/lib/mediapipe-config";
 
 type Status = "initializing" | "loading" | "ready" | "error";
@@ -65,6 +68,7 @@ export default function HandTracker() {
   const [bullets, setBullets] = useState<Bullet[]>([]);
   const [playerHp, setPlayerHp] = useState<number>(100);
   const [gameOver, setGameOver] = useState<boolean>(false);
+  const [victory, setVictory] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
   const [hitMessage, setHitMessage] = useState<string | null>(null);
   const [isFistDetected, setIsFistDetected] = useState<boolean>(false);
@@ -72,6 +76,8 @@ export default function HandTracker() {
     right: boolean;
     left: boolean;
   }>({ right: false, left: false });
+  const [totalSpawned, setTotalSpawned] = useState<number>(0);
+  const [planesKilled, setPlanesKilled] = useState<number>(0);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -108,6 +114,11 @@ export default function HandTracker() {
   const bulletsRef = useRef<Bullet[]>([]);
   const lastShootTimeRef = useRef<Map<number, number>>(new Map());
   const playerHpRef = useRef<number>(100);
+  const lastSpawnTimeRef = useRef<number>(0);
+  const nextDuckIdRef = useRef<number>(0);
+  const factoryProgressRef = useRef<number>(0); // 0 to 1 progress of current plane being built
+  const totalSpawnedRef = useRef<number>(0);
+  const planesKilledRef = useRef<number>(0);
 
   // Plane sprites
   const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
@@ -333,6 +344,16 @@ export default function HandTracker() {
     playerHpRef.current = playerHp;
   }, [playerHp]);
 
+  // Sync totalSpawned state to ref
+  useEffect(() => {
+    totalSpawnedRef.current = totalSpawned;
+  }, [totalSpawned]);
+
+  // Sync planesKilled state to ref
+  useEffect(() => {
+    planesKilledRef.current = planesKilled;
+  }, [planesKilled]);
+
   // Sync ducks state to ref and update score when ducks die
   useEffect(() => {
     const previousDucks = ducksRef.current;
@@ -346,6 +367,14 @@ export default function HandTracker() {
         // Duck died - play explosion
         if (prevDuck && prevDuck.alive && !duck.alive) {
           setScore((prev) => prev + 10);
+          setPlanesKilled((prev) => {
+            const newKilled = prev + 1;
+            // Check for victory
+            if (newKilled === TOTAL_PLANES) {
+              setVictory(true);
+            }
+            return newKilled;
+          });
           setHitMessage("CONSUMED! +10");
           setTimeout(() => setHitMessage(null), 500);
 
@@ -412,30 +441,48 @@ export default function HandTracker() {
   }
 
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
+    // Don't spawn any ducks initially - they'll spawn from factory
+    setDucks([]);
+    setTotalSpawned(0);
+    setPlanesKilled(0);
+    totalSpawnedRef.current = 0;
+    planesKilledRef.current = 0;
+    lastSpawnTimeRef.current = performance.now();
+    factoryProgressRef.current = 0;
+    console.log("Duck spawning system initialized");
+  }
+
+  function spawnDuck(canvasWidth: number, canvasHeight: number) {
     const colors = ["#ff6b6b", "#4ecdc4", "#feca57", "#ff9ff3", "#48dbfb"];
-    const newDucks: Duck[] = [];
 
-    // Create 5 ducks at random positions with random velocities
-    for (let i = 0; i < 5; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 3; // 2-5 pixels per frame
+    // Factory position (top-left corner)
+    const factoryX = 100;
+    const factoryY = 100;
 
-      newDucks.push({
-        id: i,
-        x: Math.random() * (canvasWidth - 200) + 100,
-        y: Math.random() * (canvasHeight - 200) + 100,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        size: 84, // 30% smaller (120 * 0.7 = 84)
-        color: colors[i % colors.length],
-        alive: true,
-        hp: 100,
-        maxHp: 100,
-      });
-    }
+    // Spawn with velocity away from factory (towards center-right)
+    const angle = Math.PI / 4 + (Math.random() - 0.5) * 0.5; // 45° ± variance
+    const speed = 3 + Math.random() * 2; // 3-5 pixels per frame
 
-    setDucks(newDucks);
-    console.log("Ducks initialized:", newDucks);
+    const newDuck: Duck = {
+      id: nextDuckIdRef.current++,
+      x: factoryX,
+      y: factoryY,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 84,
+      color: colors[nextDuckIdRef.current % colors.length],
+      alive: true,
+      hp: 100,
+      maxHp: 100,
+    };
+
+    setDucks((prev) => [...prev, newDuck]);
+    setTotalSpawned((prev) => {
+      const newTotal = prev + 1;
+      totalSpawnedRef.current = newTotal;
+      console.log(`Spawned plane #${newDuck.id} (Total spawned: ${newTotal}/${TOTAL_PLANES})`);
+      return newTotal;
+    });
   }
 
   function detectHands() {
@@ -494,6 +541,24 @@ export default function HandTracker() {
       // Update duck physics (includes shooting)
       updateDuckPhysics(canvas.width, canvas.height);
 
+      // Update factory progress and spawn planes
+      const alivePlanes = ducksRef.current.filter((d) => d.alive).length;
+      const canBuildMore = alivePlanes < MAX_PLANES_ALIVE && totalSpawnedRef.current < TOTAL_PLANES;
+
+      if (canBuildMore) {
+        // Increment factory progress (fills in 3 seconds at 60fps: 1/(3*60) = 0.00556)
+        factoryProgressRef.current += 1 / (SPAWN_INTERVAL_MS / 1000 * 60);
+
+        // Spawn when progress complete
+        if (factoryProgressRef.current >= 1.0) {
+          spawnDuck(canvas.width, canvas.height);
+          factoryProgressRef.current = 0;
+        }
+      } else {
+        // Can't build - reset progress
+        factoryProgressRef.current = 0;
+      }
+
       // Draw particles
       drawParticles(ctx);
 
@@ -502,6 +567,9 @@ export default function HandTracker() {
 
       // Draw ducks
       drawDucks(ctx);
+
+      // Draw factory
+      drawFactory(ctx, canvas.width, canvas.height);
 
       // Draw hand landmarks and process both hands
       if (results.landmarks && results.landmarks.length > 0) {
@@ -875,6 +943,75 @@ export default function HandTracker() {
     });
   }
 
+  function drawFactory(
+    ctx: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number
+  ) {
+    const factoryX = 50;
+    const factoryY = 50;
+    const factoryWidth = 100;
+    const factoryHeight = 80;
+
+    // Factory building (rectangle with angled roof)
+    ctx.fillStyle = "#2c3e50";
+    ctx.fillRect(factoryX, factoryY, factoryWidth, factoryHeight);
+
+    // Factory roof (triangle)
+    ctx.fillStyle = "#34495e";
+    ctx.beginPath();
+    ctx.moveTo(factoryX - 10, factoryY); // Left edge
+    ctx.lineTo(factoryX + factoryWidth + 10, factoryY); // Right edge
+    ctx.lineTo(factoryX + factoryWidth / 2, factoryY - 30); // Top point
+    ctx.closePath();
+    ctx.fill();
+
+    // Factory border
+    ctx.strokeStyle = "#1a252f";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(factoryX, factoryY, factoryWidth, factoryHeight);
+
+    // Progress bar
+    const barWidth = 80;
+    const barHeight = 12;
+    const barX = factoryX + (factoryWidth - barWidth) / 2;
+    const barY = factoryY + factoryHeight + 10;
+
+    // Progress bar background
+    ctx.fillStyle = "#333333";
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // Progress bar fill
+    const progress = factoryProgressRef.current;
+    const canBuild =
+      ducksRef.current.filter((d) => d.alive).length < MAX_PLANES_ALIVE &&
+      totalSpawnedRef.current < TOTAL_PLANES;
+
+    ctx.fillStyle = canBuild ? "#3498db" : "#95a5a6";
+    ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+
+    // Progress bar border
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // Factory label
+    ctx.font = "bold 12px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ecf0f1";
+    ctx.fillText("FACTORY", factoryX + factoryWidth / 2, factoryY + factoryHeight / 2);
+
+    // Planes killed counter (X/20)
+    const killed = planesKilledRef.current;
+    ctx.font = "bold 10px system-ui";
+    ctx.fillStyle = killed < TOTAL_PLANES ? "#2ecc71" : "#e74c3c";
+    ctx.fillText(
+      `${killed}/${TOTAL_PLANES}`,
+      factoryX + factoryWidth / 2,
+      barY + barHeight + 15
+    );
+  }
+
   function drawPlayerShield(ctx: CanvasRenderingContext2D) {
     const canvas = canvasRef.current;
     if (!canvas || !shieldPositionRef.current) return;
@@ -1045,7 +1182,7 @@ export default function HandTracker() {
         // Shoot at player shield occasionally with spread
         const lastShot = lastShootTimeRef.current.get(duck.id) || 0;
         const nowTime = Date.now();
-        if (nowTime - lastShot > 3000 && !gameOver && shieldPositionRef.current) {
+        if (nowTime - lastShot > 3000 && !gameOver && !victory && shieldPositionRef.current) {
           // Shoot towards shield position with cone spread
           const targetX = shieldPositionRef.current.x;
           const targetY = shieldPositionRef.current.y;
@@ -1137,24 +1274,26 @@ export default function HandTracker() {
 
       ctx.restore();
 
-      // Draw HP bar (not rotated)
-      const barWidth = duck.size;
-      const barHeight = 6;
-      const barX = duck.x - barWidth / 2;
-      const barY = duck.y - duck.size / 2 - 12;
+      // Draw HP bar only if damaged (not rotated)
+      if (hpRatio < 1.0) {
+        const barWidth = duck.size;
+        const barHeight = 6;
+        const barX = duck.x - barWidth / 2;
+        const barY = duck.y - duck.size / 2 - 12;
 
-      // Background
-      ctx.fillStyle = "#333333";
-      ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Background
+        ctx.fillStyle = "#333333";
+        ctx.fillRect(barX, barY, barWidth, barHeight);
 
-      // HP fill
-      ctx.fillStyle = hpRatio > 0.5 ? "#00ff88" : hpRatio > 0.25 ? "#feca57" : "#ff6b6b";
-      ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+        // HP fill
+        ctx.fillStyle = hpRatio > 0.5 ? "#00ff88" : hpRatio > 0.25 ? "#feca57" : "#ff6b6b";
+        ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
-      // HP bar border
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(barX, barY, barWidth, barHeight);
+        // HP bar border
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+      }
     });
   }
 
@@ -1355,8 +1494,7 @@ export default function HandTracker() {
               <strong>HP:</strong> {playerHp}
             </div>
             <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#888" }}>
-              <strong>Ducks:</strong> {ducks.filter((d) => d.alive).length}/
-              {ducks.length}
+              <strong>Killed:</strong> {planesKilled}/{TOTAL_PLANES}
             </div>
             <div style={{ marginTop: "0.5rem", fontSize: "0.75rem" }}>
               <div style={{ color: handsDetected.right ? "#00ff88" : "#666" }}>
@@ -1374,6 +1512,48 @@ export default function HandTracker() {
           </>
         )}
       </div>
+
+      {/* Victory screen */}
+      {victory && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            padding: "3rem",
+            backgroundColor: "rgba(0, 0, 0, 0.95)",
+            border: "3px solid #00ff88",
+            borderRadius: "12px",
+            textAlign: "center",
+            zIndex: 1000,
+          }}
+        >
+          <h2 style={{ color: "#00ff88", fontSize: "3rem", marginBottom: "1rem" }}>
+            VICTORY!
+          </h2>
+          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "1rem" }}>
+            All planes destroyed!
+          </p>
+          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "2rem" }}>
+            Final Score: {score}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "1rem 2rem",
+              fontSize: "1.25rem",
+              backgroundColor: "#00ff88",
+              color: "#000000",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            Play Again
+          </button>
+        </div>
+      )}
 
       {/* Game Over screen */}
       {gameOver && (
