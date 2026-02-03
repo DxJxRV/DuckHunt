@@ -571,23 +571,24 @@ export default function HandTracker() {
     const corner = Math.floor(Math.random() * 4);
     const factoryWidth = 200; // Double size (was 100)
     const factoryHeight = 160; // Double size (was 80)
+    const offsetX = 10; // Horizontal offset to push factory more into edges
 
     let factoryX, factoryY;
     switch (corner) {
       case 0: // Top-left
-        factoryX = 0;
+        factoryX = -offsetX;
         factoryY = 0;
         break;
       case 1: // Top-right
-        factoryX = canvasWidth - factoryWidth;
+        factoryX = canvasWidth - factoryWidth + offsetX;
         factoryY = 0;
         break;
       case 2: // Bottom-left
-        factoryX = 0;
+        factoryX = -offsetX;
         factoryY = canvasHeight - factoryHeight;
         break;
       case 3: // Bottom-right
-        factoryX = canvasWidth - factoryWidth;
+        factoryX = canvasWidth - factoryWidth + offsetX;
         factoryY = canvasHeight - factoryHeight;
         break;
       default:
@@ -1239,16 +1240,24 @@ export default function HandTracker() {
       const frameIndex = canBuild ? Math.floor(time / 200) % 2 : 0;
       const sprite = frameIndex === 0 ? factorySprite1Ref.current : factorySprite2Ref.current;
 
-      // Apply transformations based on corner (flip sprite so door faces spawn direction)
+      // Apply transformations based on corner
       ctx.save();
 
       // Translate to factory center
       ctx.translate(factoryX + factoryWidth / 2, factoryY + factoryHeight / 2);
 
-      // Flip horizontal only when factory is on right side (corners 1 and 3)
-      if (corner === 1 || corner === 3) {
-        ctx.scale(-1, 1); // Flip horizontal so door faces inward
+      // Flip based on corner position
+      if (corner === 0) {
+        // Top-left: only flip vertical
+        ctx.scale(1, -1);
+      } else if (corner === 1) {
+        // Top-right: flip both horizontal and vertical
+        ctx.scale(-1, -1);
+      } else if (corner === 3) {
+        // Bottom-right: only flip horizontal
+        ctx.scale(-1, 1);
       }
+      // Corner 2 (bottom-left): no flip
 
       // Draw sprite centered
       ctx.drawImage(sprite, -factoryWidth / 2, -factoryHeight / 2, factoryWidth, factoryHeight);
@@ -1427,14 +1436,8 @@ export default function HandTracker() {
         sprite = shieldSprite4Ref.current; // Full demon (0-25%)
       }
 
-      // Draw sprite centered on shield position
-      ctx.drawImage(
-        sprite,
-        shieldX - shieldSize / 2,
-        shieldY - shieldSize / 2,
-        shieldSize,
-        shieldSize
-      );
+      // Always draw normal (no flipping for shield)
+      ctx.drawImage(sprite, shieldX - shieldSize / 2, shieldY - shieldSize / 2, shieldSize, shieldSize);
     } else {
       // Fallback: draw simple green circle
       ctx.strokeStyle = "rgba(0, 255, 0, 1.0)";
@@ -1812,16 +1815,80 @@ export default function HandTracker() {
   }
 
   return (
-    <div
-      style={{
-        position: "relative",
-        display: "inline-block",
-        maxWidth: "100%",
-        maxHeight: "100%",
-      }}
-    >
-      {/* Video element */}
-      <video
+    <div style={{ width: "100%", maxWidth: "1280px", margin: "0 auto" }}>
+      {/* HUD Banner - Above video */}
+      {status === "ready" && (
+        <div
+          style={{
+            display: "flex",
+            gap: "2rem",
+            padding: "1rem 2rem",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            borderRadius: "8px 8px 0 0",
+            fontFamily: "monospace",
+            fontSize: "0.875rem",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          {/* FPS & Status */}
+          <div style={{ display: "flex", gap: "1.5rem" }}>
+            <div>
+              <strong>FPS:</strong> <span style={{ color: "#feca57" }}>{fps}</span>
+            </div>
+            <div>
+              <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+            </div>
+          </div>
+
+          {/* Planes Killed */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "1.2rem" }}>✈️</span>
+            <span><strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span></span>
+          </div>
+
+          {/* HP */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ fontSize: "1.2rem" }}>❤️</span>
+            <span>
+              <strong>HP:</strong>{" "}
+              <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
+                {playerHp}
+              </span>
+            </span>
+          </div>
+
+          {/* Hands Detection */}
+          <div style={{ display: "flex", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+              <span style={{ fontSize: "1rem" }}>🤚</span>
+              <span style={{ color: handsDetected.right ? "#00ff88" : "#666", fontSize: "0.75rem" }}>
+                {handsDetected.right ? "AIM" : "✗"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+              <span style={{ fontSize: "1rem", transform: "scaleX(-1)", display: "inline-block" }}>🤚</span>
+              <span style={{
+                color: isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#666"),
+                fontSize: "0.75rem"
+              }}>
+                {handsDetected.left ? (isFistDetected ? "FIRE" : "RDY") : "✗"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          position: "relative",
+          display: "inline-block",
+          maxWidth: "100%",
+          maxHeight: "100%",
+        }}
+      >
+        {/* Video element */}
+        <video
         ref={videoRef}
         style={{
           display: status === "ready" ? "block" : "none",
@@ -1861,69 +1928,6 @@ export default function HandTracker() {
           }
         }}
       />
-
-      {/* Status overlay */}
-      <div
-        style={{
-          position: "absolute",
-          top: "1rem",
-          left: "1rem",
-          padding: "0.75rem 1rem",
-          backgroundColor: "rgba(0, 0, 0, 0.7)",
-          borderRadius: "6px",
-          fontSize: "0.875rem",
-          fontFamily: "monospace",
-        }}
-      >
-        <div style={{ marginBottom: "0.25rem" }}>
-          <strong>Status:</strong>{" "}
-          <span
-            style={{
-              color:
-                status === "ready"
-                  ? "#00ff88"
-                  : status === "error"
-                  ? "#ff6b6b"
-                  : "#feca57",
-            }}
-          >
-            {status.toUpperCase()}
-          </span>
-        </div>
-        {status === "ready" && (
-          <>
-            <div>
-              <strong>FPS:</strong> {fps}
-            </div>
-            <div style={{ marginTop: "0.5rem", fontSize: "1rem", color: "#feca57" }}>
-              <strong>Score:</strong> {score}
-            </div>
-            <div style={{
-              marginTop: "0.5rem",
-              fontSize: "1rem",
-              color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"
-            }}>
-              <strong>HP:</strong> {playerHp}
-            </div>
-            <div style={{ marginTop: "0.25rem", fontSize: "0.75rem", color: "#888" }}>
-              <strong>Killed:</strong> {planesKilled}/{TOTAL_PLANES}
-            </div>
-            <div style={{ marginTop: "0.5rem", fontSize: "0.75rem" }}>
-              <div style={{ color: handsDetected.right ? "#00ff88" : "#666" }}>
-                {handsDetected.right ? "🎯 Right: AIM" : "⚠ Right: Missing"}
-              </div>
-              <div style={{
-                color: isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#666"),
-                marginTop: "0.25rem"
-              }}>
-                {handsDetected.left
-                  ? (isFistDetected ? "✊ Left: FIRING" : "✋ Left: READY")
-                  : "⚠ Left: Missing"}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
 
       {/* Victory screen */}
       {victory && (
@@ -2075,6 +2079,7 @@ export default function HandTracker() {
           }
         }
       `}</style>
+    </div>
     </div>
   );
 }
