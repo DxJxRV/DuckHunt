@@ -1345,37 +1345,33 @@ export default function HandTracker() {
     const time = performance.now() / 1000;
     const hpRatio = playerHpRef.current / 100;
 
-    // Celestial glow - 8-pointed star shape
+    // Celestial glow - 16-pointed star shape (smaller, better gradient)
     const glowIntensity = 0.85 + Math.sin(time * 2) * 0.1; // Bold pulse: 0.75 - 0.95
-    const starSize = shieldSize * 0.7;
+    const starSize = shieldSize * 0.5; // Smaller star
 
-    // Color changes based on HP
-    let glowColor;
-    if (hpRatio > 0.5) {
-      glowColor = `rgba(255, 235, 100, ${glowIntensity})`;  // Gold for angel
-    } else {
-      glowColor = `rgba(255, 80, 80, ${glowIntensity})`;  // Red for demon
-    }
-
-    // Draw 4 layers of 8-pointed star for smooth glow effect
-    for (let layer = 3; layer >= 0; layer--) {
-      const layerSize = starSize * (1 + layer * 0.25);
-      const layerOpacity = glowIntensity * (0.8 - layer * 0.2);
+    // Draw 3 layers of 16-pointed star for smooth gradient glow
+    for (let layer = 2; layer >= 0; layer--) {
+      const layerSize = starSize * (1 + layer * 0.3);
+      const layerOpacity = (1 - layer * 0.3) * glowIntensity; // Smooth gradient
       const outerRadius = layerSize;
-      const innerRadius = layerSize * 0.5;
+      const innerRadius = layerSize * 0.55;
 
-      // 8-pointed star color (fades with layers)
+      // Smooth gradient color per layer
       if (hpRatio > 0.5) {
-        ctx.fillStyle = `rgba(255, 235, 100, ${layerOpacity * 0.4})`;
+        // Angel - gold gradient
+        const alpha = layerOpacity * (0.5 - layer * 0.15);
+        ctx.fillStyle = `rgba(255, 235, 100, ${alpha})`;
       } else {
-        ctx.fillStyle = `rgba(255, 80, 80, ${layerOpacity * 0.4})`;
+        // Demon - red gradient
+        const alpha = layerOpacity * (0.5 - layer * 0.15);
+        ctx.fillStyle = `rgba(255, 80, 80, ${alpha})`;
       }
 
       ctx.beginPath();
-      // Draw 8-pointed star
-      for (let i = 0; i < 8; i++) {
-        const angle = (i * Math.PI) / 4 + time * 0.5; // Slow rotation
-        const nextAngle = ((i + 1) * Math.PI) / 4 + time * 0.5;
+      // Draw 16-pointed star
+      for (let i = 0; i < 16; i++) {
+        const angle = (i * Math.PI) / 8 + time * 0.3; // Slower rotation, 16 points
+        const nextAngle = ((i + 1) * Math.PI) / 8 + time * 0.3;
 
         // Outer point (peak)
         const outerX = shieldX + Math.cos(angle) * outerRadius;
