@@ -78,6 +78,7 @@ export default function HandTracker() {
   }>({ right: false, left: false });
   const [totalSpawned, setTotalSpawned] = useState<number>(0);
   const [planesKilled, setPlanesKilled] = useState<number>(0);
+  const [isMuted, setIsMuted] = useState<boolean>(true);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -144,6 +145,12 @@ export default function HandTracker() {
   const damageSoundRef = useRef<HTMLAudioElement | null>(null);
   const explosionSoundRef = useRef<HTMLAudioElement | null>(null);
   const audioInitializedRef = useRef<boolean>(false);
+  const isMutedRef = useRef<boolean>(true);
+
+  // Sync isMuted state to ref
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   useEffect(() => {
     let mounted = true;
@@ -207,7 +214,7 @@ export default function HandTracker() {
       engine.loop = true;
       engine.volume = 0;
 
-      damage.volume = 0.5;
+      damage.volume = 0.175; // 35% of 0.5
       explosion.volume = 0.7;
 
       backgroundMusicRef.current = bgMusic;
@@ -423,7 +430,7 @@ export default function HandTracker() {
           createExplosionParticles(duck.x, duck.y);
 
           // Play explosion sound
-          if (explosionSoundRef.current) {
+          if (explosionSoundRef.current && !isMutedRef.current) {
             explosionSoundRef.current.currentTime = 0;
             explosionSoundRef.current.play().catch(() => {});
           }
@@ -431,7 +438,7 @@ export default function HandTracker() {
 
         // Duck took damage - play damage sound
         if (prevDuck && duck.alive && prevDuck.hp > duck.hp) {
-          if (damageSoundRef.current && Math.random() > 0.7) {
+          if (damageSoundRef.current && !isMutedRef.current && Math.random() > 0.7) {
             // 30% chance to play to avoid spam
             damageSoundRef.current.currentTime = 0;
             damageSoundRef.current.play().catch(() => {});
@@ -452,6 +459,9 @@ export default function HandTracker() {
       // Map speed (2-10) to volume (0.2-0.6)
       const volume = Math.min(0.6, Math.max(0.2, (avgSpeed - 2) / 8 * 0.4 + 0.2));
       engineSoundRef.current.volume = volume;
+    } else if (engineSoundRef.current) {
+      // No planes alive - silence engine
+      engineSoundRef.current.volume = 0;
     }
   }, [ducks]);
 
@@ -555,6 +565,41 @@ export default function HandTracker() {
     }
 
     setParticles((prev) => [...prev, ...newParticles]);
+  }
+
+  async function toggleMute() {
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+
+    if (!newMutedState) {
+      // Unmuting - start audio
+      if (!audioInitializedRef.current) {
+        // Initialize and play
+        try {
+          await backgroundMusicRef.current?.play();
+          await engineSoundRef.current?.play();
+          audioInitializedRef.current = true;
+        } catch (e) {
+          console.log("Could not start audio");
+        }
+      } else {
+        // Resume playing
+        try {
+          if (backgroundMusicRef.current?.paused) {
+            await backgroundMusicRef.current?.play();
+          }
+          if (engineSoundRef.current?.paused) {
+            await engineSoundRef.current?.play();
+          }
+        } catch (e) {
+          console.log("Could not resume audio");
+        }
+      }
+    } else {
+      // Muting - pause audio
+      backgroundMusicRef.current?.pause();
+      engineSoundRef.current?.pause();
+    }
   }
 
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
@@ -1089,7 +1134,7 @@ export default function HandTracker() {
               });
               setHitMessage("HIT! -1 HP");
               setTimeout(() => setHitMessage(null), 500);
-              if (damageSoundRef.current) {
+              if (damageSoundRef.current && !isMutedRef.current) {
                 damageSoundRef.current.currentTime = 0;
                 damageSoundRef.current.play().catch(() => {});
               }
@@ -1854,6 +1899,36 @@ export default function HandTracker() {
             </span>
           </div>
 
+          {/* Mute/Unmute Button */}
+          <button
+            onClick={toggleMute}
+            style={{
+              background: "transparent",
+              border: "2px solid #888",
+              borderRadius: "6px",
+              padding: "0.4rem 0.8rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.3rem",
+              transition: "all 0.2s ease",
+              color: isMuted ? "#888" : "#00ff88",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#ffffff";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#888";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            <span style={{ fontSize: "1.2rem" }}>{isMuted ? "🔇" : "🔊"}</span>
+            <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
+              {isMuted ? "MUTED" : "ON"}
+            </span>
+          </button>
+
           {/* Hands Detection */}
           <div style={{ display: "flex", gap: "1rem" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
@@ -1910,18 +1985,6 @@ export default function HandTracker() {
           transform: "scaleX(-1)", // Mirror canvas
           pointerEvents: "auto",
           cursor: "crosshair",
-        }}
-        onClick={async () => {
-          // Initialize audio on first click
-          if (!audioInitializedRef.current) {
-            try {
-              await backgroundMusicRef.current?.play();
-              await engineSoundRef.current?.play();
-              audioInitializedRef.current = true;
-            } catch (e) {
-              console.log("Could not start audio");
-            }
-          }
         }}
       />
 
