@@ -455,6 +455,37 @@ export default function HandTracker() {
     }
   }, [ducks]);
 
+  function spawnPlaneAirParticles() {
+    // Spawn air particles from random alive plane
+    const alivePlanes = ducksRef.current.filter((d) => d.alive);
+    if (alivePlanes.length === 0) return;
+
+    const plane = alivePlanes[Math.floor(Math.random() * alivePlanes.length)];
+    const angle = Math.atan2(plane.vy, plane.vx);
+
+    // Spawn from back of plane
+    const backX = plane.x - Math.cos(angle) * (plane.size / 2);
+    const backY = plane.y - Math.sin(angle) * (plane.size / 2);
+
+    const newParticles: Particle[] = [];
+
+    // Create 2-3 air particles
+    for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+      newParticles.push({
+        x: backX + (Math.random() - 0.5) * 15,
+        y: backY + (Math.random() - 0.5) * 15,
+        vx: -Math.cos(angle) * (0.5 + Math.random() * 0.5), // Opposite direction
+        vy: -Math.sin(angle) * (0.5 + Math.random() * 0.5),
+        life: 1.0,
+        maxLife: 1.0,
+        size: 3 + Math.random() * 3,
+        color: `rgba(200, 220, 255, ${0.4 + Math.random() * 0.3})`,
+      });
+    }
+
+    setParticles((prev) => [...prev, ...newParticles]);
+  }
+
   function spawnFactoryParticles() {
     if (!factoryPositionRef.current) return;
 
@@ -538,31 +569,30 @@ export default function HandTracker() {
 
     // Choose random corner for factory (0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right)
     const corner = Math.floor(Math.random() * 4);
-    const margin = 50;
     const factoryWidth = 200; // Double size (was 100)
     const factoryHeight = 160; // Double size (was 80)
 
     let factoryX, factoryY;
     switch (corner) {
       case 0: // Top-left
-        factoryX = margin;
-        factoryY = margin;
+        factoryX = 0;
+        factoryY = 0;
         break;
       case 1: // Top-right
-        factoryX = canvasWidth - margin - factoryWidth;
-        factoryY = margin;
+        factoryX = canvasWidth - factoryWidth;
+        factoryY = 0;
         break;
       case 2: // Bottom-left
-        factoryX = margin;
-        factoryY = canvasHeight - margin - factoryHeight - 40; // Extra space for progress bar
+        factoryX = 0;
+        factoryY = canvasHeight - factoryHeight;
         break;
       case 3: // Bottom-right
-        factoryX = canvasWidth - margin - factoryWidth;
-        factoryY = canvasHeight - margin - factoryHeight - 40;
+        factoryX = canvasWidth - factoryWidth;
+        factoryY = canvasHeight - factoryHeight;
         break;
       default:
-        factoryX = margin;
-        factoryY = margin;
+        factoryX = 0;
+        factoryY = 0;
     }
 
     factoryPositionRef.current = { x: factoryX, y: factoryY, corner };
@@ -681,6 +711,11 @@ export default function HandTracker() {
 
       // Update duck physics (includes shooting)
       updateDuckPhysics(canvas.width, canvas.height);
+
+      // Spawn air particles from planes occasionally
+      if (Math.random() > 0.92) {
+        spawnPlaneAirParticles();
+      }
 
       // Update factory progress and spawn planes
       const alivePlanes = ducksRef.current.filter((d) => d.alive).length;
@@ -1101,10 +1136,101 @@ export default function HandTracker() {
     const factoryWidth = 200; // Double size
     const factoryHeight = 160; // Double size
     const corner = factoryPositionRef.current.corner;
+    const centerX = factoryX + factoryWidth / 2;
+    const centerY = factoryY + factoryHeight / 2;
 
     const canBuild =
       ducksRef.current.filter((d) => d.alive).length < MAX_PLANES_ALIVE &&
       totalSpawnedRef.current < TOTAL_PLANES;
+
+    const time = performance.now() / 1000;
+
+    // Draw shadow/base glow beneath factory
+    const shadowGradient = ctx.createRadialGradient(
+      centerX,
+      centerY + factoryHeight / 2,
+      0,
+      centerX,
+      centerY + factoryHeight / 2,
+      factoryWidth * 0.8
+    );
+    shadowGradient.addColorStop(0, "rgba(0, 0, 0, 0.6)");
+    shadowGradient.addColorStop(0.5, "rgba(0, 0, 0, 0.3)");
+    shadowGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = shadowGradient;
+    ctx.fillRect(
+      centerX - factoryWidth,
+      centerY - factoryHeight / 2,
+      factoryWidth * 2,
+      factoryHeight * 1.5
+    );
+
+    // Draw fog/mist particles around factory (animated)
+    for (let i = 0; i < 8; i++) {
+      const angle = (time * 0.3 + i * (Math.PI / 4)) % (Math.PI * 2);
+      const distance = 80 + Math.sin(time * 0.5 + i) * 20;
+      const fogX = centerX + Math.cos(angle) * distance;
+      const fogY = centerY + Math.sin(angle) * distance;
+      const fogSize = 40 + Math.sin(time * 0.4 + i * 0.5) * 15;
+      const fogAlpha = 0.08 + Math.sin(time * 0.6 + i * 0.3) * 0.04;
+
+      const fogGradient = ctx.createRadialGradient(fogX, fogY, 0, fogX, fogY, fogSize);
+      fogGradient.addColorStop(0, `rgba(100, 100, 120, ${fogAlpha})`);
+      fogGradient.addColorStop(0.5, `rgba(80, 80, 100, ${fogAlpha * 0.5})`);
+      fogGradient.addColorStop(1, "rgba(60, 60, 80, 0)");
+
+      ctx.fillStyle = fogGradient;
+      ctx.beginPath();
+      ctx.arc(fogX, fogY, fogSize, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Factory glow (orange when active, white-orange when idle)
+    if (canBuild && factoryProgressRef.current > 0) {
+      // Active glow - bright orange
+      const glowIntensity = 0.85 + Math.sin(time * 3) * 0.1; // Range: 0.75 - 0.95
+      const glowGradient = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        factoryWidth * 1.2
+      );
+      // Orange gradient - bright center, darker edges
+      glowGradient.addColorStop(0, `rgba(255, 159, 67, ${glowIntensity})`); // Bright orange center
+      glowGradient.addColorStop(0.2, `rgba(255, 140, 66, ${glowIntensity * 0.7})`);
+      glowGradient.addColorStop(0.5, `rgba(255, 107, 53, ${glowIntensity * 0.4})`);
+      glowGradient.addColorStop(0.8, `rgba(255, 87, 34, ${glowIntensity * 0.15})`);
+      glowGradient.addColorStop(1, "rgba(255, 87, 34, 0)"); // Transparent
+
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, factoryWidth * 1.2, 0, 2 * Math.PI);
+      ctx.fill();
+    } else {
+      // Idle glow - warm orange (embers resting) - 30% more orange and prominent
+      const idleIntensity = 0.52 + Math.sin(time * 1.5) * 0.1; // 30% more intense: 0.42 - 0.62
+      const idleGradient = ctx.createRadialGradient(
+        centerX,
+        centerY,
+        0,
+        centerX,
+        centerY,
+        factoryWidth * 1.0
+      );
+      // Orange gradient - more saturated orange
+      idleGradient.addColorStop(0, `rgba(255, 220, 180, ${idleIntensity})`); // Warm orange center
+      idleGradient.addColorStop(0.3, `rgba(255, 180, 110, ${idleIntensity * 0.7})`); // Medium orange
+      idleGradient.addColorStop(0.6, `rgba(255, 140, 80, ${idleIntensity * 0.4})`); // Deeper orange
+      idleGradient.addColorStop(0.85, `rgba(255, 120, 60, ${idleIntensity * 0.15})`);
+      idleGradient.addColorStop(1, "rgba(255, 100, 40, 0)"); // Transparent
+
+      ctx.fillStyle = idleGradient;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, factoryWidth * 1.0, 0, 2 * Math.PI);
+      ctx.fill();
+    }
 
     // Draw factory sprite if loaded, otherwise fallback to shapes
     if (factorySpritesLoadedRef.current && factorySprite1Ref.current && factorySprite2Ref.current) {
@@ -1153,36 +1279,48 @@ export default function HandTracker() {
     const barWidth = 80;
     const barHeight = 12;
     const barX = factoryX + (factoryWidth - barWidth) / 2;
-    const barY = factoryY + factoryHeight + 10;
+
+    // Position bar above factory for bottom corners, below for top corners
+    const barY = (corner === 2 || corner === 3)
+      ? factoryY - barHeight - 10  // Above factory
+      : factoryY + factoryHeight + 10; // Below factory
 
     // Progress bar background
     ctx.fillStyle = "#333333";
     ctx.fillRect(barX, barY, barWidth, barHeight);
 
-    // Progress bar fill
+    // Progress bar fill (orange gradient when building)
     const progress = factoryProgressRef.current;
-    ctx.fillStyle = canBuild ? "#3498db" : "#95a5a6";
-    ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+    if (canBuild && progress > 0) {
+      const barGradient = ctx.createLinearGradient(barX, barY, barX + barWidth, barY);
+      barGradient.addColorStop(0, "#ff9f43"); // Bright orange
+      barGradient.addColorStop(0.5, "#ff8c42"); // Medium orange
+      barGradient.addColorStop(1, "#ff6b35"); // Dark orange
+      ctx.fillStyle = barGradient;
+      ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+    } else if (!canBuild) {
+      ctx.fillStyle = "#95a5a6";
+      ctx.fillRect(barX, barY, barWidth * progress, barHeight);
+    }
 
     // Progress bar border
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-    // Factory label
-    ctx.font = "bold 12px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#ecf0f1";
-    ctx.fillText("FACTORY", factoryX + factoryWidth / 2, factoryY + factoryHeight / 2);
-
-    // Planes killed counter (X/20)
+    // Planes killed counter (X/20) - position based on bar location
     const killed = planesKilledRef.current;
+    const counterY = (corner === 2 || corner === 3)
+      ? barY - 5  // Above bar for bottom corners
+      : barY + barHeight + 15; // Below bar for top corners
+
     ctx.font = "bold 10px system-ui";
     ctx.fillStyle = killed < TOTAL_PLANES ? "#2ecc71" : "#e74c3c";
+    ctx.textAlign = "center";
     ctx.fillText(
       `${killed}/${TOTAL_PLANES}`,
       factoryX + factoryWidth / 2,
-      barY + barHeight + 15
+      counterY
     );
   }
 
@@ -1195,6 +1333,61 @@ export default function HandTracker() {
     const shieldRadius = 80;
     const shieldSize = 160; // Size for sprite (2x radius)
 
+    const time = performance.now() / 1000;
+    const hpRatio = playerHpRef.current / 100;
+
+    // Celestial glow - 8-pointed star shape
+    const glowIntensity = 0.85 + Math.sin(time * 2) * 0.1; // Bold pulse: 0.75 - 0.95
+    const starSize = shieldSize * 0.7;
+
+    // Color changes based on HP
+    let glowColor;
+    if (hpRatio > 0.5) {
+      glowColor = `rgba(255, 235, 100, ${glowIntensity})`;  // Gold for angel
+    } else {
+      glowColor = `rgba(255, 80, 80, ${glowIntensity})`;  // Red for demon
+    }
+
+    // Draw 4 layers of 8-pointed star for smooth glow effect
+    for (let layer = 3; layer >= 0; layer--) {
+      const layerSize = starSize * (1 + layer * 0.25);
+      const layerOpacity = glowIntensity * (0.8 - layer * 0.2);
+      const outerRadius = layerSize;
+      const innerRadius = layerSize * 0.5;
+
+      // 8-pointed star color (fades with layers)
+      if (hpRatio > 0.5) {
+        ctx.fillStyle = `rgba(255, 235, 100, ${layerOpacity * 0.4})`;
+      } else {
+        ctx.fillStyle = `rgba(255, 80, 80, ${layerOpacity * 0.4})`;
+      }
+
+      ctx.beginPath();
+      // Draw 8-pointed star
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * Math.PI) / 4 + time * 0.5; // Slow rotation
+        const nextAngle = ((i + 1) * Math.PI) / 4 + time * 0.5;
+
+        // Outer point (peak)
+        const outerX = shieldX + Math.cos(angle) * outerRadius;
+        const outerY = shieldY + Math.sin(angle) * outerRadius;
+
+        // Inner point (valley) between peaks
+        const innerAngle = (angle + nextAngle) / 2;
+        const innerX = shieldX + Math.cos(innerAngle) * innerRadius;
+        const innerY = shieldY + Math.sin(innerAngle) * innerRadius;
+
+        if (i === 0) {
+          ctx.moveTo(outerX, outerY);
+        } else {
+          ctx.lineTo(outerX, outerY);
+        }
+        ctx.lineTo(innerX, innerY);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
     // HP bar above shield (thin bar, no text)
     const barWidth = 160;
     const barHeight = 8;
@@ -1206,7 +1399,6 @@ export default function HandTracker() {
     ctx.fillRect(barX, barY, barWidth, barHeight);
 
     // HP bar fill (using ref for correct value)
-    const hpRatio = playerHpRef.current / 100;
     ctx.fillStyle = hpRatio > 0.5 ? "#00ff88" : hpRatio > 0.25 ? "#feca57" : "#ff6b6b";
     ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
 
@@ -1444,6 +1636,9 @@ export default function HandTracker() {
 
       const hpRatio = duck.hp / duck.maxHp;
 
+      // Calculate angle based on velocity
+      const angle = Math.atan2(duck.vy, duck.vx);
+
       // Animate propeller: alternate between sprite 1 and 2
       const frameIndex = Math.floor(time / 100) % 2; // Switch every 100ms
       const sprite = frameIndex === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
@@ -1455,8 +1650,7 @@ export default function HandTracker() {
       // Translate to plane position
       ctx.translate(duck.x, duck.y);
 
-      // Rotate based on velocity direction
-      const angle = Math.atan2(duck.vy, duck.vx);
+      // Rotate based on velocity direction (angle already calculated above)
       ctx.rotate(angle);
 
       // Draw plane sprite first
@@ -1476,6 +1670,19 @@ export default function HandTracker() {
         ctx.fillRect(-duck.size / 2, -duck.size / 2, duck.size, duck.size);
         ctx.globalCompositeOperation = "source-over"; // Reset immediately
       }
+
+      // Simple radial glow (no specific shape)
+      const glowSize = duck.size * 0.8;
+      const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+      glowGradient.addColorStop(0, "rgba(200, 220, 255, 0.3)");
+      glowGradient.addColorStop(0.4, "rgba(200, 220, 255, 0.2)");
+      glowGradient.addColorStop(0.7, "rgba(200, 220, 255, 0.1)");
+      glowGradient.addColorStop(1, "rgba(200, 220, 255, 0)");
+
+      ctx.fillStyle = glowGradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowSize, 0, 2 * Math.PI);
+      ctx.fill();
 
       ctx.restore();
 
