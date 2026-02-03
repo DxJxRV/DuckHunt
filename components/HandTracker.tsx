@@ -109,6 +109,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const frameCountRef = useRef<number>(0);
   const fpsUpdateIntervalRef = useRef<number>(0);
 
+  // MediaPipe optimization - skip frames
+  const detectionFrameCountRef = useRef<number>(0);
+  const lastHandResultRef = useRef<HandLandmarkerResult | null>(null);
+
   // Fire debounce
   const lastFireTimeRef = useRef<number>(0);
   const isFistClosedRef = useRef<boolean>(false);
@@ -315,9 +319,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           },
           runningMode: "VIDEO",
           numHands: 2,
-          minHandDetectionConfidence: 0.5,
-          minHandPresenceConfidence: 0.5,
-          minTrackingConfidence: 0.5,
+          minHandDetectionConfidence: 0.7, // Increased from 0.5 for better performance
+          minHandPresenceConfidence: 0.7, // Increased from 0.5 for better performance
+          minTrackingConfidence: 0.7, // Increased from 0.5 for better performance
         });
 
         if (!mounted) {
@@ -805,7 +809,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     if (!ctx) return;
 
     const detect = () => {
-      const now = performance.now();
+      const frameStart = performance.now();
+      const now = frameStart;
+
+      // Profiling object
+      const timings: Record<string, number> = {};
 
       // If paused, just redraw and continue loop
       if (isPausedRef.current) {
@@ -822,11 +830,23 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         return;
       }
 
-      // Detect hand landmarks
-      const results: HandLandmarkerResult = handLandmarker.detectForVideo(
-        video,
-        now
-      );
+      // Detect hand landmarks (OPTIMIZED: Skip every other frame)
+      detectionFrameCountRef.current++;
+      const shouldDetect = detectionFrameCountRef.current % 2 === 0;
+
+      let results: HandLandmarkerResult;
+      const t1 = performance.now();
+
+      if (shouldDetect) {
+        // Run detection on even frames
+        results = handLandmarker.detectForVideo(video, now);
+        lastHandResultRef.current = results; // Cache result
+        timings.mediapipe = performance.now() - t1;
+      } else {
+        // Skip detection on odd frames, use cached result
+        results = lastHandResultRef.current || { landmarks: [], handednesses: [], worldLandmarks: [] };
+        timings.mediapipe = 0; // Skipped
+      }
 
       // Initialize shield position on first frame
       if (!shieldPositionRef.current) {
@@ -854,16 +874,24 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       }
 
       // Clear canvas
+      const t2 = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      timings.clear = performance.now() - t2;
 
       // Update bullets
+      const t3 = performance.now();
       updateBullets(canvas.width, canvas.height);
+      timings.updateBullets = performance.now() - t3;
 
       // Update particle physics
+      const t4 = performance.now();
       updateParticles();
+      timings.updateParticles = performance.now() - t4;
 
       // Update duck physics (includes shooting)
+      const t5 = performance.now();
       updateDuckPhysics(canvas.width, canvas.height);
+      timings.updateDuckPhysics = performance.now() - t5;
 
       // Spawn air particles from planes occasionally
       if (Math.random() > 0.92) {
@@ -889,16 +917,24 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       }
 
       // Draw particles
+      const t6 = performance.now();
       drawParticles(ctx);
+      timings.drawParticles = performance.now() - t6;
 
       // Draw bullets
+      const t7 = performance.now();
       drawBullets(ctx);
+      timings.drawBullets = performance.now() - t7;
 
       // Draw ducks
+      const t8 = performance.now();
       drawDucks(ctx);
+      timings.drawDucks = performance.now() - t8;
 
       // Draw factory
+      const t9 = performance.now();
       drawFactory(ctx, canvas.width, canvas.height);
+      timings.drawFactory = performance.now() - t9;
 
       // Spawn factory particles (smoke/sparks) when building
       if (canBuildMore && Math.random() > 0.85) {
@@ -906,6 +942,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       }
 
       // Draw hand landmarks and process both hands
+      const t10 = performance.now();
       if (results.landmarks && results.landmarks.length > 0) {
         let rightHandLandmarks = null;
         let leftHandLandmarks = null;
@@ -982,11 +1019,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
         // Draw black hole effect if fist detected
         if (isFistDetectedRef.current && crosshairPositionRef.current) {
+          const t11 = performance.now();
           drawBlackHole(
             ctx,
             crosshairPositionRef.current.x,
             crosshairPositionRef.current.y
           );
+          timings.drawBlackHole = performance.now() - t11;
         }
 
         // Draw crosshair at independent position
@@ -997,15 +1036,20 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             crosshairPositionRef.current.y
           );
         }
+
+        timings.handProcessing = performance.now() - t10;
       } else {
         // No hands detected - keep crosshair at last position
         setIsFistDetected(false);
         isFistClosedRef.current = false;
         setHandsDetected({ right: false, left: false });
+        timings.handProcessing = 0;
       }
 
       // Draw player shield (on top of everything)
+      const t12 = performance.now();
       drawPlayerShield(ctx);
+      timings.drawShield = performance.now() - t12;
 
       // Draw "FIRE!" message if firing
       if (isFiring) {
@@ -1017,7 +1061,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         drawHitMessage(ctx, canvas.width, canvas.height, hitMessage);
       }
 
-      // Calculate FPS
+      // Calculate FPS and log performance metrics
       frameCountRef.current++;
       const deltaTime = now - lastFrameTimeRef.current;
 
@@ -1027,6 +1071,29 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         setFps(Math.round(currentFps));
         frameCountRef.current = 0;
         lastFrameTimeRef.current = now;
+      }
+
+      // Log performance every 60 frames (~1 second)
+      const totalFrameTime = performance.now() - frameStart;
+      timings.totalFrame = totalFrameTime;
+
+      if (frameCountRef.current % 60 === 0) {
+        console.log("🔍 PERFORMANCE PROFILING:");
+        console.log(`├─ MediaPipe Detection: ${timings.mediapipe?.toFixed(2)}ms (${((timings.mediapipe / totalFrameTime) * 100).toFixed(1)}%)`);
+        console.log(`├─ Clear Canvas: ${timings.clear?.toFixed(2)}ms`);
+        console.log(`├─ Update Bullets: ${timings.updateBullets?.toFixed(2)}ms`);
+        console.log(`├─ Update Particles: ${timings.updateParticles?.toFixed(2)}ms`);
+        console.log(`├─ Update Duck Physics: ${timings.updateDuckPhysics?.toFixed(2)}ms`);
+        console.log(`├─ Draw Particles: ${timings.drawParticles?.toFixed(2)}ms`);
+        console.log(`├─ Draw Bullets: ${timings.drawBullets?.toFixed(2)}ms`);
+        console.log(`├─ Draw Ducks: ${timings.drawDucks?.toFixed(2)}ms (${((timings.drawDucks / totalFrameTime) * 100).toFixed(1)}%)`);
+        console.log(`├─ Draw Factory: ${timings.drawFactory?.toFixed(2)}ms (${((timings.drawFactory / totalFrameTime) * 100).toFixed(1)}%)`);
+        console.log(`├─ Hand Processing: ${timings.handProcessing?.toFixed(2)}ms`);
+        console.log(`├─ Draw Black Hole: ${timings.drawBlackHole?.toFixed(2) || '0.00'}ms ${timings.drawBlackHole ? `(${((timings.drawBlackHole / totalFrameTime) * 100).toFixed(1)}%)` : ''}`);
+        console.log(`├─ Draw Shield: ${timings.drawShield?.toFixed(2)}ms (${((timings.drawShield / totalFrameTime) * 100).toFixed(1)}%)`);
+        console.log(`└─ TOTAL FRAME: ${totalFrameTime.toFixed(2)}ms (Target: 16.67ms for 60fps)`);
+        console.log(`   Current FPS: ${Math.round(1000 / totalFrameTime)}`);
+        console.log("");
       }
 
       // Continue loop
@@ -1102,8 +1169,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     ctx.arc(x, y, 150, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw many small spiraling particles (expanded, uniform fill)
-    for (let i = 0; i < 60; i++) {
+    // Draw spiraling particles (optimized: reduced from 60 to 30 for performance)
+    for (let i = 0; i < 30; i++) {
       // More variation in angles to avoid pattern grouping
       const angleOffset = (i * 2.4) + (Math.sin(i * 0.5) * 0.3);
       const angle = (time * 3 + angleOffset) % (Math.PI * 2);
@@ -1141,12 +1208,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
       ctx.beginPath();
       ctx.arc(x, y, arcRadius, startAngle, startAngle + arcLength);
-      ctx.strokeStyle = `rgba(186, 85, 211, ${0.4 + Math.sin(time * 6 + i) * 0.2})`;
-      ctx.lineWidth = 2;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "rgba(138, 43, 226, 0.8)";
+      ctx.strokeStyle = `rgba(186, 85, 211, ${0.5 + Math.sin(time * 6 + i) * 0.3})`;
+      ctx.lineWidth = 3;
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
 
     // Draw central vortex (larger, more dynamic)
@@ -1163,15 +1227,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     ctx.arc(x, y, vortexSize, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw bright pulsing core
+    // Draw bright pulsing core (optimized: removed shadow blur)
     const coreSize = 15 + Math.sin(time * 5) * 5;
     ctx.beginPath();
     ctx.arc(x, y, coreSize, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(255, 100, 255, ${0.6 + Math.sin(time * 7) * 0.3})`;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = "rgba(255, 0, 255, 0.8)";
+    ctx.fillStyle = `rgba(255, 100, 255, ${0.7 + Math.sin(time * 7) * 0.3})`;
     ctx.fill();
-    ctx.shadowBlur = 0;
   }
 
   function drawCrosshair(
@@ -1318,9 +1379,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       factoryHeight * 1.5
     );
 
-    // Draw fog/mist particles around factory (animated)
-    for (let i = 0; i < 8; i++) {
-      const angle = (time * 0.3 + i * (Math.PI / 4)) % (Math.PI * 2);
+    // Draw fog/mist particles around factory (optimized: reduced from 8 to 4)
+    for (let i = 0; i < 4; i++) {
+      const angle = (time * 0.3 + i * (Math.PI / 2)) % (Math.PI * 2);
       const distance = 80 + Math.sin(time * 0.5 + i) * 20;
       const fogX = centerX + Math.cos(angle) * distance;
       const fogY = centerY + Math.sin(angle) * distance;
@@ -1501,8 +1562,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     const glowIntensity = 0.85 + Math.sin(time * 2) * 0.1; // Bold pulse: 0.75 - 0.95
     const starSize = shieldSize * 0.5; // Smaller star
 
-    // Draw 3 layers of 16-pointed star for smooth gradient glow
-    for (let layer = 2; layer >= 0; layer--) {
+    // Draw 2 layers of 16-pointed star (optimized: reduced from 3 to 2 layers)
+    for (let layer = 1; layer >= 0; layer--) {
       const layerSize = starSize * (1 + layer * 0.3);
       const layerOpacity = (1 - layer * 0.3) * glowIntensity; // Smooth gradient
       const outerRadius = layerSize;
@@ -1822,12 +1883,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         ctx.globalCompositeOperation = "source-over"; // Reset immediately
       }
 
-      // Simple radial glow (no specific shape)
+      // Simple radial glow (optimized: reduced gradient stops from 4 to 2)
       const glowSize = duck.size * 0.8;
       const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
       glowGradient.addColorStop(0, "rgba(200, 220, 255, 0.3)");
-      glowGradient.addColorStop(0.4, "rgba(200, 220, 255, 0.2)");
-      glowGradient.addColorStop(0.7, "rgba(200, 220, 255, 0.1)");
       glowGradient.addColorStop(1, "rgba(200, 220, 255, 0)");
 
       ctx.fillStyle = glowGradient;
