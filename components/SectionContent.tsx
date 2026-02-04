@@ -210,11 +210,8 @@ export default function SectionContent({
                   ) : null
                 ) : (
                   <div className="tutorial-gif-placeholder">
-                    <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
-                    <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
-                      Tutorial GIF
-                      <br />
-                      <small>({config.tutorialGif})</small>
+                    <p style={{ opacity: 0.6, fontSize: "1.2rem", fontWeight: 600 }}>
+                      Estará próximamente
                     </p>
                   </div>
                 )}

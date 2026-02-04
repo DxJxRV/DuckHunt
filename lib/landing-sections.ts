@@ -48,7 +48,27 @@ export const landingSections: Section[] = [
     },
   },
 
-  // SLIDE 2: Apuntar
+  // SLIDE 2: Combate y Shield Angel (MOVIDO DESDE POSICIÓN 4)
+  {
+    id: "combat",
+    handPosition: "bottom-left",
+    background: {
+      type: "gradient",
+      gradient: `
+        radial-gradient(circle at 80% 20%, rgba(255, 159, 67, 0.4) 0%, transparent 60%),
+        radial-gradient(circle at 20% 80%, rgba(254, 202, 87, 0.3) 0%, transparent 60%),
+        #0a0a0a
+      `,
+    },
+    content: {
+      type: "tutorial",
+      title: "Protege al ángel o pierde",
+      description: "Los aviones atacan al Shield Angel. Destrúyelos con agujeros negros antes de que lo maten. Si el ángel llega a 0 HP, Game Over.",
+      tutorialGif: "component:ShieldAngelGif",
+    },
+  },
+
+  // SLIDE 3: Apuntar (MOVIDO DESDE POSICIÓN 2)
   {
     id: "aim",
     handPosition: "bottom-left",
@@ -69,7 +89,7 @@ export const landingSections: Section[] = [
     },
   },
 
-  // SLIDE 3: Agujero Negro
+  // SLIDE 4: Agujero Negro (MOVIDO DESDE POSICIÓN 3)
   {
     id: "black-hole",
     handPosition: "bottom-left",
@@ -86,26 +106,6 @@ export const landingSections: Section[] = [
       title: "Haz OK para invocar el vacío",
       description: "Haz el gesto OK con tu mano. Se fija un agujero negro en tu retícula que succiona y destruye aviones cercanos por gravedad.",
       tutorialGif: "/gifs/ok-gesture.gif",
-    },
-  },
-
-  // SLIDE 4: Combate y Shield Angel
-  {
-    id: "combat",
-    handPosition: "bottom-left",
-    background: {
-      type: "gradient",
-      gradient: `
-        radial-gradient(circle at 80% 20%, rgba(255, 159, 67, 0.4) 0%, transparent 60%),
-        radial-gradient(circle at 20% 80%, rgba(254, 202, 87, 0.3) 0%, transparent 60%),
-        #0a0a0a
-      `,
-    },
-    content: {
-      type: "tutorial",
-      title: "Protege al ángel o pierde",
-      description: "Los aviones atacan al Shield Angel. Destrúyelos con agujeros negros antes de que lo maten. Si el ángel llega a 0 HP, Game Over.",
-      tutorialGif: "component:ShieldAngelGif",
     },
   },
 ];
