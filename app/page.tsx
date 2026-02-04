@@ -110,9 +110,10 @@ export default function Home() {
         >
           <div
             style={{
-              fontSize: "1.1rem",
-              fontFamily: "var(--font-heading)",
-              letterSpacing: "0.05em",
+              fontSize: "1.3rem",
+              fontFamily: "var(--font-body)",
+              fontWeight: 800,
+              letterSpacing: "0.02em",
               background: "linear-gradient(135deg, #ff6b6b, #feca57)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",

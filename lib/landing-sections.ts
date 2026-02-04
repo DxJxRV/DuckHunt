@@ -105,7 +105,7 @@ export const landingSections: Section[] = [
       type: "tutorial",
       title: "😇 Protege al ángel o pierde",
       description: "Los aviones atacan al Shield Angel. Destrúyelos con agujeros negros antes de que lo maten. Si el ángel llega a 0 HP, Game Over.",
-      tutorialGif: "/gifs/shield-angel.gif",
+      tutorialGif: "component:ShieldAngelGif",
     },
   },
 ];

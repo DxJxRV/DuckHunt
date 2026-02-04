@@ -1,5 +1,10 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { Section } from "@/lib/landing-sections";
+
+const ShieldAngelGif = dynamic(() => import("@/components/ShieldAngelGif"), {
+  ssr: false,
+});
 
 interface SectionContentProps {
   config: Section["content"];
@@ -208,14 +213,22 @@ export default function SectionContent({
         {/* TOP RIGHT: GIF */}
         {config.tutorialGif && (
           <div className="quadrant-gif">
-            <div className="tutorial-gif-placeholder">
-              <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
-              <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
-                Tutorial GIF
-                <br />
-                <small>({config.tutorialGif})</small>
-              </p>
-            </div>
+            {config.tutorialGif.startsWith("component:") ? (
+              config.tutorialGif === "component:ShieldAngelGif" ? (
+                <div style={{ width: "100%", height: "100%", maxHeight: "400px" }}>
+                  <ShieldAngelGif />
+                </div>
+              ) : null
+            ) : (
+              <div className="tutorial-gif-placeholder">
+                <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
+                <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
+                  Tutorial GIF
+                  <br />
+                  <small>({config.tutorialGif})</small>
+                </p>
+              </div>
+            )}
           </div>
         )}
 
