@@ -369,7 +369,7 @@ export default function LandingAnimation() {
         left: 0,
         width: "100%",
         height: "100%",
-        zIndex: 0,
+        zIndex: 50, // Por encima de contenido pero debajo de navbar
         pointerEvents: "none",
       }}
     />
