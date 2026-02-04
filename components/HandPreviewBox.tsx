@@ -10,18 +10,23 @@ interface HandPreviewBoxProps {
   position: "bottom-right" | "bottom-left";
   targetAngle: number;
   isOK: boolean;
+  compact?: boolean; // True for tutorial slides, false for hero
 }
 
 export default function HandPreviewBox({
   position,
   targetAngle,
   isOK,
+  compact = false,
 }: HandPreviewBoxProps) {
   // Center horizontally in quadrant (left 25% or right 25% of screen)
   const positionStyles =
     position === "bottom-right"
       ? { bottom: "2rem", left: "75%", transform: "translateX(-50%)" }
       : { bottom: "2rem", left: "25%", transform: "translateX(-50%)" };
+
+  // Size: normal for hero, compact for tutorial
+  const width = compact ? "min(280px, 30vw)" : "min(400px, 40vw)";
 
   return (
     <>
@@ -30,7 +35,7 @@ export default function HandPreviewBox({
         style={{
           position: "absolute",
           ...positionStyles,
-          width: "min(280px, 30vw)", // Más compacto para banda inferior
+          width,
           aspectRatio: "16/9",
           zIndex: 5,
           background: "rgba(255, 255, 255, 0.05)",

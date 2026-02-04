@@ -202,7 +202,7 @@ export default function SectionContent({
               <div className="tutorial-gif-wrapper">
                 {config.tutorialGif.startsWith("component:") ? (
                   config.tutorialGif === "component:ShieldAngelGif" ? (
-                    <div style={{ width: "100%", maxWidth: "600px", aspectRatio: "16/9" }}>
+                    <div style={{ width: "100%", aspectRatio: "16/9" }}>
                       <ShieldAngelGif />
                     </div>
                   ) : null
@@ -366,9 +366,8 @@ export default function SectionContent({
           .tutorial-top-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4rem;
+            gap: 3rem;
             align-items: center;
-            justify-items: center; /* Centrado horizontal de items */
             width: 100%;
           }
 
@@ -379,6 +378,7 @@ export default function SectionContent({
           }
 
           .tutorial-gif-wrapper {
+            width: 100%; /* Force full width */
             display: flex;
             align-items: center;
             justify-content: center;

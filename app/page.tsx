@@ -170,6 +170,7 @@ export default function Home() {
             position={section.handPosition}
             targetAngle={handAngle}
             isOK={isOK}
+            compact={section.content.type === "tutorial"}
           />
         </section>
       ))}
