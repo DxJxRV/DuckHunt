@@ -37,6 +37,31 @@ export default function RootLayout({
             --font-heading: 'Press Start 2P', monospace;
             --font-body: 'Oxanium', system-ui, sans-serif;
           }
+
+          /* Custom scrollbar - minimalista y delgado */
+          /* Firefox */
+          * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 107, 107, 0.6) #0a0a0a;
+          }
+
+          /* Chrome, Edge, Safari */
+          ::-webkit-scrollbar {
+            width: 6px;
+          }
+
+          ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+          }
+
+          ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ff6b6b, #feca57);
+            border-radius: 10px;
+          }
+
+          ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #ff5252, #ff9f43);
+          }
         `}</style>
       </head>
       <body

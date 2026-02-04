@@ -400,8 +400,9 @@ export default function SectionContent({
             .tutorial-container {
               grid-template-columns: 1fr !important;
               grid-template-rows: auto auto auto !important; /* 3 rows: título, GIF, texto */
+              align-content: start !important; /* No distribute space, pack at top */
               gap: 2.5rem !important;
-              padding: 7rem 2rem 2rem !important; /* Less bottom padding */
+              padding: 7rem 2rem 3rem !important;
             }
 
             .quadrant-title {
@@ -444,11 +445,11 @@ export default function SectionContent({
             }
 
             .tutorial-title {
-              font-size: 2rem;
+              font-size: 3.25rem; /* +30% adicional */
             }
 
             .tutorial-description {
-              font-size: 1.2rem;
+              font-size: 1.4rem; /* +20% */
             }
 
             .tutorial-gif-placeholder {
