@@ -142,11 +142,12 @@ export default function Home() {
               fontFamily: "var(--font-heading)",
               fontSize: "0.75rem",
               letterSpacing: "0.05em",
-              background: "linear-gradient(135deg, #ff6b6b, #ff5252)",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "20px",
+              backdropFilter: "blur(20px)",
               color: "white",
               textDecoration: "none",
-              boxShadow: "0 4px 15px rgba(255, 107, 107, 0.3)",
             }}
           >
             Play
@@ -205,12 +206,14 @@ export default function Home() {
 
           {/* Hand preview box - floating (hero uses large, tutorial uses compact) */}
           {(section.content.type === "hero" || section.content.type === "tutorial") && (
-            <HandPreviewBox
-              position={section.handPosition}
-              targetAngle={handAngle}
-              isOK={isOK}
-              compact={section.content.type === "tutorial"}
-            />
+            <div className={section.content.type === "tutorial" ? "tutorial-floating-hand" : ""}>
+              <HandPreviewBox
+                position={section.handPosition}
+                targetAngle={handAngle}
+                isOK={isOK}
+                compact={section.content.type === "tutorial"}
+              />
+            </div>
           )}
         </section>
       ))}
@@ -286,6 +289,13 @@ export default function Home() {
         /* Solo visible en mobile */
         @media (min-width: 768px) {
           .mobile-nav-button-up {
+            display: none !important;
+          }
+        }
+
+        /* Tutorial floating hand - solo visible en mobile */
+        @media (min-width: 1024px) {
+          .tutorial-floating-hand {
             display: none !important;
           }
         }

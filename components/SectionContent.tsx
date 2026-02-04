@@ -54,7 +54,23 @@ export default function SectionContent({
 
           {config.cta && (
             <div style={{ marginBottom: "1.5rem" }}>
-              <Link href={config.cta.href} className="hero-cta">
+              <Link
+                href={config.cta.href}
+                className="hero-cta"
+                style={{
+                  fontFamily: "var(--font-heading)",
+                  padding: "1rem 2.5rem",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "20px",
+                  backdropFilter: "blur(20px)",
+                  color: "white",
+                  fontSize: "0.9rem",
+                  letterSpacing: "0.05em",
+                  textDecoration: "none",
+                  display: "inline-block",
+                }}
+              >
                 {config.cta.text}
               </Link>
             </div>
