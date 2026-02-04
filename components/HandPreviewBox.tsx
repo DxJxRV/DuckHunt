@@ -30,7 +30,7 @@ export default function HandPreviewBox({
         style={{
           position: "absolute",
           ...positionStyles,
-          width: "min(400px, 40vw)",
+          width: "min(280px, 30vw)", // Más compacto para banda inferior
           aspectRatio: "16/9",
           zIndex: 5,
           background: "rgba(255, 255, 255, 0.05)",

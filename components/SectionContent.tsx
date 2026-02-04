@@ -185,86 +185,228 @@ export default function SectionContent({
 
   // Tutorial layout (slides de aprendizaje)
   if (config.type === "tutorial") {
-    // 4 quadrants layout (CONSISTENTE, no alterna)
-    // Top-left: Título | Top-right: GIF
-    // Bottom-left: Espacio mano | Bottom-right: Texto
-
     return (
-      <div
-        className="tutorial-container"
-        style={{
-          position: "relative",
-          zIndex: 10,
-          height: "100vh",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "1fr 1fr",
-          gap: "3rem",
-          padding: "8rem 4rem 4rem",
-          maxWidth: "1600px",
-          margin: "0 auto",
-        }}
-      >
-        {/* TOP LEFT: Título */}
-        <div className="quadrant-title">
-          <h2 className="tutorial-title">{config.title}</h2>
-        </div>
+      <>
+        {/* DESKTOP LAYOUT */}
+        <div className="tutorial-container-desktop">
+        {/* SECCIÓN SUPERIOR: 75vh - Título y GIF */}
+        <div className="tutorial-top">
+          <div className="tutorial-top-content">
+            {/* Título */}
+            <div className="tutorial-title-wrapper">
+              <h2 className="tutorial-title">{config.title}</h2>
+            </div>
 
-        {/* TOP RIGHT: GIF */}
-        {config.tutorialGif && (
-          <div className="quadrant-gif">
-            {config.tutorialGif.startsWith("component:") ? (
-              config.tutorialGif === "component:ShieldAngelGif" ? (
-                <div style={{ width: "100%", height: "100%", maxHeight: "400px" }}>
-                  <ShieldAngelGif />
-                </div>
-              ) : null
-            ) : (
-              <div className="tutorial-gif-placeholder">
-                <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
-                <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
-                  Tutorial GIF
-                  <br />
-                  <small>({config.tutorialGif})</small>
-                </p>
+            {/* GIF */}
+            {config.tutorialGif && (
+              <div className="tutorial-gif-wrapper">
+                {config.tutorialGif.startsWith("component:") ? (
+                  config.tutorialGif === "component:ShieldAngelGif" ? (
+                    <div style={{ width: "100%", maxWidth: "600px", aspectRatio: "16/9" }}>
+                      <ShieldAngelGif />
+                    </div>
+                  ) : null
+                ) : (
+                  <div className="tutorial-gif-placeholder">
+                    <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
+                    <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
+                      Tutorial GIF
+                      <br />
+                      <small>({config.tutorialGif})</small>
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
 
-        {/* BOTTOM LEFT: Espacio para mano (HandPreviewBox maneja su posición) */}
-        <div className="quadrant-hand-space"></div>
+          {/* SECCIÓN INFERIOR: 25vh - Banda dividida (mano | texto) */}
+          <div className="tutorial-bottom">
+            {/* Lado izquierdo: Espacio para mano (25%) */}
+            <div className="bottom-hand-space"></div>
 
-        {/* BOTTOM RIGHT: Texto descripción */}
-        <div className="quadrant-text">
-          <p className="tutorial-description">{config.description}</p>
+            {/* Lado derecho: Texto (75%) */}
+            <div className="bottom-text">
+              <p className="tutorial-description-desktop">{config.description}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* MOBILE LAYOUT - Completamente separado */}
+        <div className="tutorial-container-mobile">
+          <div className="mobile-title-section">
+            <h2 className="tutorial-title-mobile">{config.title}</h2>
+          </div>
+
+          {config.tutorialGif && (
+            <div className="mobile-gif-section">
+              {config.tutorialGif.startsWith("component:") ? (
+                config.tutorialGif === "component:ShieldAngelGif" ? (
+                  <div style={{ width: "100%", aspectRatio: "16/9" }}>
+                    <ShieldAngelGif />
+                  </div>
+                ) : null
+              ) : (
+                <div className="tutorial-gif-placeholder">
+                  <span style={{ fontSize: "3rem", opacity: 0.3 }}>🎬</span>
+                  <p style={{ opacity: 0.5, marginTop: "1rem", fontSize: "0.85rem" }}>
+                    Tutorial GIF
+                    <br />
+                    <small>({config.tutorialGif})</small>
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mobile-text-section">
+            <p className="tutorial-description-mobile">{config.description}</p>
+          </div>
         </div>
 
         <style jsx>{`
-          /* Quadrant styles */
-          .quadrant-title {
+          /* DESKTOP LAYOUT - Solo visible en desktop */
+          .tutorial-container-desktop {
+            position: relative;
+            zIndex: 10;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: 1rem;
           }
 
-          .quadrant-gif {
+          @media (max-width: 1024px) {
+            .tutorial-container-desktop {
+              display: none !important; /* Ocultar en mobile */
+            }
+          }
+
+          /* MOBILE LAYOUT - Solo visible en mobile */
+          .tutorial-container-mobile {
+            display: none; /* Oculto por defecto (desktop) */
+          }
+
+          @media (max-width: 1024px) {
+            .tutorial-container-mobile {
+              display: block !important;
+              position: relative;
+              z-index: 10;
+              padding: 7rem 2rem 3rem;
+            }
+
+            .mobile-title-section {
+              text-align: center;
+              margin-bottom: 2.5rem;
+            }
+
+            .mobile-gif-section {
+              padding: 0 1rem;
+              margin-bottom: 2.5rem;
+            }
+
+            .mobile-text-section {
+              padding: 0 1.5rem;
+              text-align: center;
+            }
+
+            .tutorial-title-mobile {
+              font-family: var(--font-heading);
+              font-size: 32px;
+              font-weight: 400;
+              line-height: 1.3;
+              letter-spacing: 0.02em;
+              color: white;
+              margin: 0;
+            }
+
+            .tutorial-description-mobile {
+              font-family: var(--font-body);
+              font-size: 1.5rem;
+              font-weight: 600;
+              color: #feca57;
+              line-height: 1.4;
+              margin: 0;
+            }
+          }
+
+          @media (max-width: 768px) {
+            .tutorial-container-mobile {
+              padding: 6.5rem 1.5rem 1.5rem !important;
+            }
+
+            .mobile-title-section {
+              margin-bottom: 2rem;
+            }
+
+            .mobile-gif-section {
+              margin-bottom: 2rem;
+            }
+
+            .tutorial-title-mobile {
+              font-size: 32px !important; /* Mantener 32px en mobile pequeño */
+            }
+
+            .tutorial-description-mobile {
+              font-size: 1.4rem !important;
+            }
+          }
+
+          /* Sección superior: 75vh */
+          .tutorial-top {
+            flex: 3; /* 75% del espacio */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8rem 5rem 1rem; /* Padding interior consistente */
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+          }
+
+          .tutorial-top-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+            justify-items: center; /* Centrado horizontal de items */
+            width: 100%;
+          }
+
+          .tutorial-title-wrapper {
             display: flex;
             align-items: center;
             justify-content: center;
           }
 
-          .quadrant-text {
+          .tutorial-gif-wrapper {
             display: flex;
-            align-items: flex-start; /* Align to top */
+            align-items: center;
             justify-content: center;
-            padding: 2rem;
-            padding-top: 3rem; /* Extra top padding */
           }
 
-          .quadrant-hand-space {
-            /* Espacio reservado para HandPreviewBox */
+          /* Sección inferior: 25vh - Banda dividida horizontalmente */
+          .tutorial-bottom {
+            flex: 1; /* 25% del espacio vertical */
+            display: grid;
+            grid-template-columns: 1fr 3fr; /* Mano 25% | Texto 75% */
+            align-items: center;
+            padding: 0 5rem 2rem; /* Padding interior consistente */
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+          }
+
+          .bottom-hand-space {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centrado horizontal */
+          }
+
+          .bottom-text {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Centrado horizontal */
+            padding: 0 2rem;
           }
 
           .tutorial-title {
@@ -277,12 +419,12 @@ export default function SectionContent({
             margin: 0;
           }
 
-          .tutorial-description {
+          .tutorial-description-desktop {
             font-family: var(--font-body);
-            font-size: 2rem;
+            font-size: 1.5rem; /* Reducido para banda compacta */
             font-weight: 600;
             color: #feca57; /* Amarillo para texto explicativo */
-            line-height: 1.6;
+            line-height: 1.4;
             margin: 0;
           }
 
@@ -408,69 +550,8 @@ export default function SectionContent({
             }
           }
 
-          /* Mobile responsive - 3 vertical rows */
-          @media (max-width: 1024px) {
-            .tutorial-container {
-              grid-template-columns: 1fr !important;
-              grid-template-rows: auto auto auto !important; /* 3 rows: título, GIF, texto */
-              align-content: start !important; /* No distribute space, pack at top */
-              gap: 2.5rem !important;
-              padding: 7rem 2rem 3rem !important;
-            }
-
-            .quadrant-title {
-              text-align: center;
-              padding: 0 1rem;
-            }
-
-            .quadrant-gif {
-              padding: 0 1rem;
-            }
-
-            .quadrant-text {
-              padding: 0 1.5rem;
-              text-align: center;
-              align-items: center !important; /* Center vertically in mobile */
-              padding-top: 0 !important;
-            }
-
-            .tutorial-title {
-              font-size: 2.5rem;
-            }
-
-            .tutorial-description {
-              font-size: 1.5rem;
-            }
-
-            .tutorial-gif-placeholder {
-              max-height: 300px !important;
-            }
-
-            .quadrant-hand-space {
-              display: none; /* Hide grid space, hand is position absolute */
-            }
-          }
-
-          @media (max-width: 768px) {
-            .tutorial-container {
-              gap: 2rem !important;
-              padding: 6.5rem 1.5rem 1.5rem !important;
-            }
-
-            .tutorial-title {
-              font-size: 3.25rem; /* +30% adicional */
-            }
-
-            .tutorial-description {
-              font-size: 1.4rem; /* +20% */
-            }
-
-            .tutorial-gif-placeholder {
-              max-height: 250px !important;
-            }
-          }
         `}</style>
-      </div>
+      </>
     );
   }
 
