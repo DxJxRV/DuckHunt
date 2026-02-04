@@ -90,6 +90,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [victory, setVictory] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
+  const [gameOverTime, setGameOverTime] = useState<number>(0);
+  const [victoryTime, setVictoryTime] = useState<number>(0);
   const [hitMessage, setHitMessage] = useState<string | null>(null);
   const [isFistDetected, setIsFistDetected] = useState<boolean>(false);
   const [handsDetected, setHandsDetected] = useState<{
@@ -184,6 +186,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const audioInitializedRef = useRef<boolean>(false);
   const isMutedRef = useRef<boolean>(true);
   const isPausedRef = useRef<boolean>(false);
+  const gameOverRef = useRef<boolean>(false);
+  const victoryRef = useRef<boolean>(false);
 
   // Sync isMuted state to ref
   useEffect(() => {
@@ -194,6 +198,16 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
+
+  // Sync gameOver state to ref
+  useEffect(() => {
+    gameOverRef.current = gameOver;
+  }, [gameOver]);
+
+  // Sync victory state to ref
+  useEffect(() => {
+    victoryRef.current = victory;
+  }, [victory]);
 
   // Sync isPausedProp to state
   useEffect(() => {
@@ -515,6 +529,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             // Check for victory
             if (newKilled === TOTAL_PLANES) {
               setVictory(true);
+              setVictoryTime(performance.now());
             }
             return newKilled;
           });
@@ -929,7 +944,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       const t1 = performance.now();
 
       // Detect every 3 frames (simple skip, no ROI)
-      const shouldDetect = detectionFrameCountRef.current % 3 === 0;
+      // Skip MediaPipe detection when game over or victory (but keep animations running)
+      const shouldDetect = detectionFrameCountRef.current % 3 === 0 && !gameOverRef.current && !victoryRef.current;
 
       if (shouldDetect) {
         // Simple full-frame detection (ROI disabled for stability)
@@ -1382,7 +1398,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               // Hit player (shield radius = 80)
               setPlayerHp((prev) => {
                 const newHp = Math.max(0, prev - 1);
-                if (newHp === 0) setGameOver(true);
+                if (newHp === 0) {
+                  setGameOver(true);
+                  setGameOverTime(performance.now());
+                }
                 return newHp;
               });
               setHitMessage("HIT! -1 HP");
@@ -2392,37 +2411,73 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
       {/* Pause overlay */}
       {isPaused && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.7)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 500,
-          }}
-        >
+        <>
+          {/* Dark overlay background (30% opacity) */}
           <div
             style={{
-              padding: "2rem 3rem",
-              backgroundColor: "rgba(26, 26, 30, 0.95)",
-              border: "3px solid #feca57",
-              borderRadius: "12px",
-              textAlign: "center",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              zIndex: 499,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Content */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "2rem",
+              zIndex: 500,
             }}
           >
-            <h2 style={{ color: "#feca57", fontSize: "3rem", marginBottom: "0.5rem" }}>
-              ⏸️ PAUSED
+            <h2
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "clamp(3rem, 12vw, 6rem)",
+                fontWeight: 400,
+                background: "linear-gradient(135deg, #feca57, #ff9f43)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                margin: 0,
+                textAlign: "center",
+                pointerEvents: "none",
+              }}
+            >
+              PAUSED
             </h2>
-            <p style={{ fontSize: "1rem", color: "#888", margin: 0 }}>
-              Click PAUSE to resume
-            </p>
+            <button
+              onClick={() => setIsPaused(false)}
+              style={{
+                padding: "1rem 2.5rem",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.9rem",
+                letterSpacing: "0.05em",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                color: "white",
+                textDecoration: "none",
+                cursor: "pointer",
+                pointerEvents: "auto",
+              }}
+            >
+              Continuar
+            </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Rotate device overlay (Portrait mode) */}
@@ -2468,83 +2523,140 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
       {/* Victory screen */}
       {victory && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            padding: "3rem",
-            backgroundColor: "rgba(0, 0, 0, 0.95)",
-            border: "3px solid #00ff88",
-            borderRadius: "12px",
-            textAlign: "center",
-            zIndex: 1000,
-          }}
-        >
-          <h2 style={{ color: "#00ff88", fontSize: "3rem", marginBottom: "1rem" }}>
-            VICTORY!
-          </h2>
-          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "1rem" }}>
-            All planes destroyed!
-          </p>
-          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "2rem" }}>
-            Final Score: {score}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
+        <>
+          {/* Dark overlay background (30% opacity) */}
+          <div
             style={{
-              padding: "1rem 2rem",
-              fontSize: "1.25rem",
-              backgroundColor: "#00ff88",
-              color: "#000000",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              zIndex: 999,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Content */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "2rem",
+              zIndex: 1000,
             }}
           >
-            Play Again
-          </button>
-        </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "clamp(3rem, 12vw, 6rem)",
+                fontWeight: 400,
+                background: "linear-gradient(135deg, #00ff88, #feca57)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                margin: 0,
+                textAlign: "center",
+              }}
+            >
+              VICTORY
+            </h2>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "1rem 2.5rem",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.9rem",
+                letterSpacing: "0.05em",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                color: "white",
+                textDecoration: "none",
+                cursor: "pointer",
+              }}
+            >
+              Volver a jugar
+            </button>
+          </div>
+        </>
       )}
 
       {/* Game Over screen */}
       {gameOver && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            padding: "3rem",
-            backgroundColor: "rgba(0, 0, 0, 0.95)",
-            border: "3px solid #ff6b6b",
-            borderRadius: "12px",
-            textAlign: "center",
-            zIndex: 1000,
-          }}
-        >
-          <h2 style={{ color: "#ff6b6b", fontSize: "3rem", marginBottom: "1rem" }}>
-            GAME OVER
-          </h2>
-          <p style={{ fontSize: "1.5rem", color: "#feca57", marginBottom: "2rem" }}>
-            Final Score: {score}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
+        <>
+          {/* Dark overlay background (30% opacity) */}
+          <div
             style={{
-              padding: "1rem 2rem",
-              fontSize: "1.25rem",
-              backgroundColor: "#ff6b6b",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              zIndex: 999,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Content */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "2rem",
+              zIndex: 1000,
             }}
           >
-            Play Again
-          </button>
-        </div>
+            <h2
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "clamp(3rem, 12vw, 6rem)",
+                fontWeight: 400,
+                background: "linear-gradient(135deg, #ff6b6b, #feca57)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                margin: 0,
+                textAlign: "center",
+              }}
+            >
+              GAME OVER
+            </h2>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "1rem 2.5rem",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.9rem",
+                letterSpacing: "0.05em",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                color: "white",
+                textDecoration: "none",
+                cursor: "pointer",
+              }}
+            >
+              Volver a jugar
+            </button>
+          </div>
+        </>
       )}
 
       {/* Error message */}
@@ -2613,6 +2725,15 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           }
           100% {
             transform: rotate(360deg);
+          }
+        }
+
+        @keyframes fadeOut {
+          0% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
           }
         }
 
