@@ -102,7 +102,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [planesKilled, setPlanesKilled] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
@@ -216,30 +215,23 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     }
   }, [isPausedProp]);
 
-  // Detect orientation and screen size changes
+  // Detect screen size changes
   useEffect(() => {
-    const checkOrientation = () => {
-      const isPortraitMode = window.matchMedia("(orientation: portrait)").matches;
-      const isMobileSize = window.matchMedia("(max-width: 900px) and (orientation: landscape)").matches;
-      setIsPortrait(isPortraitMode);
+    const checkScreenSize = () => {
+      const isMobileSize = window.matchMedia("(max-width: 1280px)").matches;
       setIsMobile(isMobileSize);
     };
 
     // Check initial state
-    checkOrientation();
+    checkScreenSize();
 
     // Listen for changes
-    const orientationQuery = window.matchMedia("(orientation: portrait)");
-    const sizeQuery = window.matchMedia("(max-width: 900px) and (orientation: landscape)");
-
-    const handler = () => checkOrientation();
-
-    orientationQuery.addEventListener("change", handler);
+    const sizeQuery = window.matchMedia("(max-width: 1280px)");
+    const handler = () => checkScreenSize();
     sizeQuery.addEventListener("change", handler);
     window.addEventListener("resize", handler);
 
     return () => {
-      orientationQuery.removeEventListener("change", handler);
       sizeQuery.removeEventListener("change", handler);
       window.removeEventListener("resize", handler);
     };
@@ -2364,18 +2356,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           isMobile
             ? {
                 position: "relative",
-                display: "inline-block",
-                maxWidth: "100%",
-                maxHeight: "100%",
                 width: "calc(100% - 80px)",
+                height: "100vh",
                 marginRight: "80px",
               }
             : {
                 position: "relative",
-                display: "inline-block",
-                maxWidth: "100%",
-                maxHeight: "100%",
                 width: "100%",
+                height: "100vh",
               }
         }
       >
@@ -2385,8 +2373,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         style={{
           display: status === "ready" ? "block" : "none",
           width: "100%",
-          maxWidth: "1280px",
-          height: "auto",
+          height: "100%",
+          objectFit: "cover",
           transform: "scaleX(-1)", // Mirror video
           borderRadius: "8px",
         }}
@@ -2480,46 +2468,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         </>
       )}
 
-      {/* Rotate device overlay (Portrait mode) */}
-      {isPortrait && (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            backgroundColor: "rgba(0, 0, 0, 0.95)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2000,
-          }}
-        >
-          <div
-            style={{
-              padding: "2rem",
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "5rem",
-                marginBottom: "1.5rem",
-                animation: "rotate-phone 2s ease-in-out infinite",
-              }}
-            >
-              📱
-            </div>
-            <h2 style={{ color: "#feca57", fontSize: "2rem", marginBottom: "1rem" }}>
-              Por favor rota tu dispositivo
-            </h2>
-            <p style={{ fontSize: "1.2rem", color: "#888", margin: 0 }}>
-              Este juego requiere orientación horizontal
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Victory screen */}
       {victory && (
@@ -2750,7 +2698,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         }
 
         /* Mobile landscape responsive styles - HUD becomes right sidebar */
-        @media (max-width: 900px) and (orientation: landscape) {
+        @media (max-width: 1280px) {
           .game-container {
             max-width: 100vw;
             margin: 0;
@@ -2835,7 +2783,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         }
 
         /* Very small mobile devices */
-        @media (max-width: 700px) and (orientation: landscape) {
+        @media (max-width: 700px) {
           .hud-banner {
             width: 65px !important;
             font-size: 0.65rem !important;
@@ -2860,7 +2808,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           }
         }
 
-        @media (max-width: 500px) and (orientation: landscape) {
+        @media (max-width: 500px) {
           .hud-banner {
             width: 55px !important;
             padding: 0.8rem 0.3rem !important;
@@ -2889,24 +2837,16 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
           .video-container video,
           .video-container canvas {
-            max-width: 100%;
-            max-height: calc(100vh - 60px);
-            object-fit: contain;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
           }
         }
 
-        @media (max-width: 900px) and (orientation: landscape) {
+        @media (max-width: 1280px) {
           .video-container video,
           .video-container canvas {
-            max-height: calc(100vh - 50px);
             border-radius: 0 !important;
-          }
-        }
-
-        @media (max-width: 700px) and (orientation: landscape) {
-          .video-container video,
-          .video-container canvas {
-            max-height: calc(100vh - 40px);
           }
         }
       `}</style>
