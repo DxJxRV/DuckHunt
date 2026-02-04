@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { ChevronUp } from "lucide-react";
 import { landingSections } from "@/lib/landing-sections";
 import SectionBackground from "@/components/SectionBackground";
 import SectionContent from "@/components/SectionContent";
@@ -73,6 +74,13 @@ export default function Home() {
     if (activeSection < landingSections.length - 1) {
       const nextSection = document.getElementById(`section-${activeSection + 1}`);
       nextSection?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const goToPrevSection = () => {
+    if (activeSection > 0) {
+      const prevSection = document.getElementById(`section-${activeSection - 1}`);
+      prevSection?.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -195,24 +203,60 @@ export default function Home() {
             }
           />
 
-          {/* Hand preview box (only for hero - floating) */}
-          {section.content.type === "hero" && (
+          {/* Hand preview box - floating (hero uses large, tutorial uses compact) */}
+          {(section.content.type === "hero" || section.content.type === "tutorial") && (
             <HandPreviewBox
               position={section.handPosition}
               targetAngle={handAngle}
               isOK={isOK}
-              compact={false}
+              compact={section.content.type === "tutorial"}
             />
           )}
         </section>
       ))}
 
-      {/* Mobile Navigation Button */}
+      {/* Mobile Navigation Buttons */}
       <MobileNavButton
         onClick={goToNextSection}
         isLastSection={activeSection === landingSections.length - 1}
         currentHandPosition={landingSections[activeSection]?.handPosition || "bottom-right"}
       />
+
+      {/* Mobile Up Button (slides 2, 3, 4) - positioned next to the down button */}
+      {activeSection >= 1 && (
+        <button
+          onClick={goToPrevSection}
+          className="mobile-nav-button-up"
+          style={{
+            position: "fixed",
+            bottom: "1rem",
+            [landingSections[activeSection]?.handPosition === "bottom-right" ? "left" : "right"]: "6rem",
+            zIndex: 50,
+            padding: "0.8rem",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "20px",
+            backdropFilter: "blur(20px)",
+            cursor: "pointer",
+            width: "80px",
+            height: "80px",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(0, 0, 0, 0.4)",
+              borderRadius: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            <ChevronUp size={32} strokeWidth={2.5} color="#feca57" />
+          </div>
+        </button>
+      )}
 
       {/* Global styles for transitions */}
       <style jsx global>{`
@@ -228,6 +272,22 @@ export default function Home() {
         /* Scroll padding to account for navbar */
         html {
           scroll-padding-top: 80px;
+        }
+
+        /* Mobile Up Button styles */
+        .mobile-nav-button-up {
+          animation: subtleBounce 3s ease-in-out infinite;
+        }
+
+        .mobile-nav-button-up:active {
+          transform: scale(0.9) !important;
+        }
+
+        /* Solo visible en mobile */
+        @media (min-width: 768px) {
+          .mobile-nav-button-up {
+            display: none !important;
+          }
         }
       `}</style>
     </div>

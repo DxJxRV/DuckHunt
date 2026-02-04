@@ -51,7 +51,7 @@ export const landingSections: Section[] = [
   // SLIDE 2: Combate y Shield Angel (MOVIDO DESDE POSICIÓN 4)
   {
     id: "combat",
-    handPosition: "bottom-left",
+    handPosition: "bottom-right",
     background: {
       type: "gradient",
       gradient: `
@@ -71,7 +71,7 @@ export const landingSections: Section[] = [
   // SLIDE 3: Apuntar (MOVIDO DESDE POSICIÓN 2)
   {
     id: "aim",
-    handPosition: "bottom-left",
+    handPosition: "bottom-right",
     background: {
       type: "illustration",
       image: "/backgrounds/isla-mujeres.png",
@@ -92,7 +92,7 @@ export const landingSections: Section[] = [
   // SLIDE 4: Agujero Negro (MOVIDO DESDE POSICIÓN 3)
   {
     id: "black-hole",
-    handPosition: "bottom-left",
+    handPosition: "bottom-right",
     background: {
       type: "gradient",
       gradient: `
