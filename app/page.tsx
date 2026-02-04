@@ -87,7 +87,7 @@ export default function Home() {
       }}
     >
       {/* Animated Canvas - Persists across all sections */}
-      <LandingAnimation key={resetKey} />
+      <LandingAnimation key={resetKey} activeSection={activeSection} />
 
       {/* Navbar - Fixed across all sections */}
       <nav

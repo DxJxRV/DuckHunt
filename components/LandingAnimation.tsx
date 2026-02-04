@@ -2,10 +2,21 @@
 
 import { useEffect, useRef } from "react";
 
-export default function LandingAnimation() {
+interface LandingAnimationProps {
+  activeSection?: number;
+}
+
+export default function LandingAnimation({ activeSection = 0 }: LandingAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const planeSprite1Ref = useRef<HTMLImageElement | null>(null);
   const planeSprite2Ref = useRef<HTMLImageElement | null>(null);
+  const currentScaleRef = useRef<number>(1);
+  const activeSectionRef = useRef<number>(activeSection);
+
+  // Update activeSectionRef when activeSection prop changes
+  useEffect(() => {
+    activeSectionRef.current = activeSection;
+  }, [activeSection]);
 
   useEffect(() => {
     console.log(`[MOUNT] 🎬 LandingAnimation montado`);
@@ -82,14 +93,14 @@ export default function LandingAnimation() {
 
 
     // Draw black hole
-    function drawBlackHole(x: number, y: number, time: number) {
-      const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150);
+    function drawBlackHole(x: number, y: number, time: number, scale: number) {
+      const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150 * scale);
       outerGlow.addColorStop(0, "rgba(138, 43, 226, 0.15)");
       outerGlow.addColorStop(0.5, "rgba(75, 0, 130, 0.08)");
       outerGlow.addColorStop(1, "rgba(138, 43, 226, 0)");
       ctx.fillStyle = outerGlow;
       ctx.beginPath();
-      ctx.arc(x, y, 150, 0, 2 * Math.PI);
+      ctx.arc(x, y, 150 * scale, 0, 2 * Math.PI);
       ctx.fill();
 
       // Spiral particles
@@ -97,20 +108,20 @@ export default function LandingAnimation() {
         const angleOffset = (i * 2.4) + (Math.sin(i * 0.5) * 0.3);
         const angle = (time * 3 + angleOffset) % (Math.PI * 2);
         const distanceOffset = (i * 2.3) % 140;
-        const distance = 140 - ((time * 80 + distanceOffset) % 140);
-        const spiralOffset = Math.sin(distance / 20 + i * 0.1) * 12;
+        const distance = (140 - ((time * 80 + distanceOffset) % 140)) * scale;
+        const spiralOffset = Math.sin(distance / (20 * scale) + i * 0.1) * 12 * scale;
 
         const px = x + Math.cos(angle) * (distance + spiralOffset);
         const py = y + Math.sin(angle) * (distance + spiralOffset);
-        const particleAlpha = (1 - (distance / 140)) * 0.6;
-        const particleSize = 1 + (1 - distance / 140) * 2;
+        const particleAlpha = (1 - (distance / (140 * scale))) * 0.6;
+        const particleSize = (1 + (1 - distance / (140 * scale)) * 2) * scale;
 
         ctx.beginPath();
         ctx.arc(px, py, particleSize, 0, 2 * Math.PI);
         ctx.fillStyle = `rgba(186, 85, 211, ${particleAlpha})`;
         ctx.fill();
 
-        if (distance < 70) {
+        if (distance < 70 * scale) {
           ctx.beginPath();
           ctx.arc(px, py, particleSize * 1.5, 0, 2 * Math.PI);
           ctx.fillStyle = `rgba(255, 0, 255, ${particleAlpha * 0.2})`;
@@ -119,7 +130,7 @@ export default function LandingAnimation() {
       }
 
       // Vortex
-      const vortexSize = 100 + Math.sin(time * 2) * 10;
+      const vortexSize = (100 + Math.sin(time * 2) * 10) * scale;
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, vortexSize);
       gradient.addColorStop(0, "rgba(138, 43, 226, 0.7)");
       gradient.addColorStop(0.2, "rgba(75, 0, 130, 0.5)");
@@ -132,7 +143,7 @@ export default function LandingAnimation() {
       ctx.fill();
 
       // Core
-      const coreSize = 15 + Math.sin(time * 5) * 5;
+      const coreSize = (15 + Math.sin(time * 5) * 5) * scale;
       ctx.beginPath();
       ctx.arc(x, y, coreSize, 0, 2 * Math.PI);
       ctx.fillStyle = `rgba(255, 100, 255, ${0.7 + Math.sin(time * 7) * 0.3})`;
@@ -144,6 +155,13 @@ export default function LandingAnimation() {
     function animate() {
       const now = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Calculate target scale based on active section (hero = 1, tutorial = 0.5)
+      const targetScale = activeSectionRef.current === 0 ? 1 : 0.5;
+
+      // Smooth interpolation for scale transition (lerp with factor 0.25 for faster transition)
+      currentScaleRef.current += (targetScale - currentScaleRef.current) * 0.25;
+      const scale = currentScaleRef.current;
 
       // Spawn 1 plane at a time (simple pattern)
       if (planes.length === 0 && !blackHole && now - lastSpawn > 3000) {
@@ -238,7 +256,7 @@ export default function LandingAnimation() {
         const angle = Math.atan2(plane.vy, plane.vx);
         ctx.rotate(angle);
 
-        const size = 84;
+        const size = 84 * scale;
         const sprite = Math.floor(now / 100) % 2 === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
 
         if (sprite) {
@@ -260,8 +278,8 @@ export default function LandingAnimation() {
 
       // Draw crosshair
       if (planes.length > 0) {
-        const size = 20;
-        const gap = 10;
+        const size = 20 * scale;
+        const gap = 10 * scale;
 
         ctx.strokeStyle = "#ff6b6b";
         ctx.lineWidth = 3;
@@ -289,14 +307,14 @@ export default function LandingAnimation() {
 
         ctx.fillStyle = "#ff6b6b";
         ctx.beginPath();
-        ctx.arc(crosshair.x, crosshair.y, 4, 0, 2 * Math.PI);
+        ctx.arc(crosshair.x, crosshair.y, 4 * scale, 0, 2 * Math.PI);
         ctx.fill();
       }
 
       // Black hole
       if (blackHole) {
         const time = now / 1000;
-        drawBlackHole(blackHole.x, blackHole.y, time);
+        drawBlackHole(blackHole.x, blackHole.y, time, scale);
 
         // Apply gravity to target plane (guaranteed consumption)
         if (targetPlane) {
