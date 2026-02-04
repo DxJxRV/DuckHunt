@@ -28,68 +28,76 @@ export default function LandingAnimation() {
     canvas.height = window.innerHeight;
 
     // Game state
-    let plane: { x: number; y: number; vx: number; vy: number; alive: boolean; spawnTime: number; catchTime: number } | null = null;
+    let planes: { id: number; x: number; y: number; vx: number; vy: number; spawnTime: number; ttl: number }[] = [];
+    let nextId = 0;
     let crosshair = { x: canvas.width / 2, y: canvas.height / 2 };
-    let blackHole: { x: number; y: number; active: boolean; startTime: number } | null = null;
+    let blackHole: { x: number; y: number; startTime: number } | null = null;
+    let targetPlaneId: number | null = null;
+    let okGestureStartTime: number = 0;
+    let totalKilled = 0;
+    let initialWaveSpawned = false;
     let lastSpawn = 0;
 
-    // Calculate if plane will exit soon
-    function willExitSoon(p: any) {
-      const margin = 100;
-      const stepsToExit = Math.min(
-        p.vx > 0 ? (canvas.width + margin - p.x) / p.vx : (p.x + margin) / -p.vx,
-        p.vy > 0 ? (canvas.height + margin - p.y) / p.vy : (p.y + margin) / -p.vy
-      );
-      return stepsToExit < 60; // ~1 second at 60fps
-    }
-
-    // Spawn plane from random edge
+    // Spawn single plane
     function spawnPlane() {
       const edge = Math.floor(Math.random() * 4);
       let x, y, vx, vy;
-
-      const speed = 2.5 + Math.random() * 1.5;
+      const speed = 2 + Math.random() * 2;
 
       if (edge === 0) {
         x = Math.random() * canvas.width;
         y = -50;
-        vx = (Math.random() - 0.5) * 3;
+        vx = (Math.random() - 0.5) * 2;
         vy = speed;
       } else if (edge === 1) {
         x = canvas.width + 50;
         y = Math.random() * canvas.height;
         vx = -speed;
-        vy = (Math.random() - 0.5) * 3;
+        vy = (Math.random() - 0.5) * 2;
       } else if (edge === 2) {
         x = Math.random() * canvas.width;
         y = canvas.height + 50;
-        vx = (Math.random() - 0.5) * 3;
+        vx = (Math.random() - 0.5) * 2;
         vy = -speed;
       } else {
         x = -50;
         y = Math.random() * canvas.height;
         vx = speed;
-        vy = (Math.random() - 0.5) * 3;
+        vy = (Math.random() - 0.5) * 2;
       }
 
       const now = performance.now();
-      plane = { x, y, vx, vy, alive: true, spawnTime: now, catchTime: now + 3000 + Math.random() * 2000 };
+      const ttl = 2000 + Math.random() * 2000; // 4-6 seconds lifecycle
+
+      planes.push({
+        id: nextId++,
+        x, y, vx, vy,
+        spawnTime: now,
+        ttl,
+      });
     }
 
-    // Draw black hole (from game)
+    // Spawn initial wave
+    function spawnInitialWave() {
+      const count = 3 + Math.floor(Math.random() * 2); // 3-4 planes
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => spawnPlane(), i * 500); // Stagger spawns
+      }
+      initialWaveSpawned = true;
+    }
+
+    // Draw black hole
     function drawBlackHole(x: number, y: number, time: number) {
-      // Outer glow
       const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150);
       outerGlow.addColorStop(0, "rgba(138, 43, 226, 0.15)");
       outerGlow.addColorStop(0.5, "rgba(75, 0, 130, 0.08)");
       outerGlow.addColorStop(1, "rgba(138, 43, 226, 0)");
-
       ctx.fillStyle = outerGlow;
       ctx.beginPath();
       ctx.arc(x, y, 150, 0, 2 * Math.PI);
       ctx.fill();
 
-      // Spiral particles (30 for landing)
+      // Spiral particles
       for (let i = 0; i < 30; i++) {
         const angleOffset = (i * 2.4) + (Math.sin(i * 0.5) * 0.3);
         const angle = (time * 3 + angleOffset) % (Math.PI * 2);
@@ -115,7 +123,7 @@ export default function LandingAnimation() {
         }
       }
 
-      // Central vortex
+      // Vortex
       const vortexSize = 100 + Math.sin(time * 2) * 10;
       const gradient = ctx.createRadialGradient(x, y, 0, x, y, vortexSize);
       gradient.addColorStop(0, "rgba(138, 43, 226, 0.7)");
@@ -123,7 +131,6 @@ export default function LandingAnimation() {
       gradient.addColorStop(0.5, "rgba(138, 43, 226, 0.3)");
       gradient.addColorStop(0.8, "rgba(186, 85, 211, 0.15)");
       gradient.addColorStop(1, "rgba(138, 43, 226, 0)");
-
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, vortexSize, 0, 2 * Math.PI);
@@ -142,83 +149,123 @@ export default function LandingAnimation() {
       const now = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Spawn plane every 6-10 seconds
-      if (!plane && !blackHole && now - lastSpawn > 6000 + Math.random() * 4000) {
+      // Spawn initial wave
+      if (!initialWaveSpawned && planes.length === 0) {
+        spawnInitialWave();
+      }
+
+      // After initial wave, spawn 1 at a time
+      if (initialWaveSpawned && planes.length === 0 && !blackHole && now - lastSpawn > 3000) {
         spawnPlane();
         lastSpawn = now;
       }
 
-      // Update and draw plane
-      if (plane && plane.alive) {
-        // Move plane
+      // Canvas dimensions
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const navbarHeight = 80; // Height of navbar to avoid
+
+      // Update planes
+
+      planes.forEach(plane => {
         plane.x += plane.vx;
         plane.y += plane.vy;
 
-        // Check if about to exit (perfect timing for catch)
-        const shouldCatch = willExitSoon(plane);
+        // Bounce off walls (like in game)
+        const margin = 50;
+        if (plane.x - margin < 0 || plane.x + margin > canvasWidth) {
+          plane.vx = -plane.vx;
+          plane.x = Math.max(margin, Math.min(canvasWidth - margin, plane.x));
+        }
+        if (plane.y - margin < navbarHeight || plane.y + margin > canvasHeight) {
+          plane.vy = -plane.vy;
+          plane.y = Math.max(navbarHeight + margin, Math.min(canvasHeight - margin, plane.y));
+        }
+      });
 
-        // Move crosshair - accelerate when it's time to catch
-        const dx = plane.x - crosshair.x;
-        const dy = plane.y - crosshair.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+      // Select target plane
+      if (targetPlaneId === null && planes.length > 0 && !blackHole) {
+        // Target oldest plane
+        const oldest = planes.reduce((prev, curr) =>
+          curr.spawnTime < prev.spawnTime ? curr : prev
+        );
+        targetPlaneId = oldest.id;
+        okGestureStartTime = 0;
+      }
 
-        // Speed up dramatically when it's time
-        const speed = shouldCatch ? 0.15 : 0.03;
+      // If target plane was consumed or expired, clear target
+      const targetExists = planes.find(p => p.id === targetPlaneId);
+      if (targetPlaneId !== null && !targetExists) {
+        targetPlaneId = null;
+        okGestureStartTime = 0;
+      }
+
+      const targetPlane = planes.find(p => p.id === targetPlaneId);
+
+      // Move crosshair toward target
+      if (targetPlane) {
+        const dx = targetPlane.x - crosshair.x;
+        const dy = targetPlane.y - crosshair.y;
+
+        // Fast tracking
+        const speed = 0.08;
         crosshair.x += dx * speed;
         crosshair.y += dy * speed;
 
-        // Activate black hole when caught (just before exit)
-        if (shouldCatch && distance < 40 && !blackHole) {
-          blackHole = { x: crosshair.x, y: crosshair.y, active: true, startTime: now };
+        // Check if target plane reached its TTL → activate OK gesture
+        const planeAge = now - targetPlane.spawnTime;
+        if (planeAge >= targetPlane.ttl && okGestureStartTime === 0 && !blackHole) {
+          okGestureStartTime = now; // Start OK gesture animation
         }
 
-        // Remove if truly out of bounds
-        if (
-          plane.x < -200 || plane.x > canvas.width + 200 ||
-          plane.y < -200 || plane.y > canvas.height + 200
-        ) {
-          plane = null;
-          blackHole = null;
-        } else {
-          // Draw plane with sprite
-          ctx.save();
-          ctx.translate(plane.x, plane.y);
-          const angle = Math.atan2(plane.vy, plane.vx);
-          ctx.rotate(angle);
-
-          const size = 84;
-          const sprite = Math.floor(now / 100) % 2 === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
-
-          if (sprite) {
-            ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
-          } else {
-            // Fallback triangle
-            ctx.fillStyle = "#ff6b6b";
-            ctx.beginPath();
-            ctx.moveTo(20, 0);
-            ctx.lineTo(-10, -10);
-            ctx.lineTo(-10, 10);
-            ctx.closePath();
-            ctx.fill();
-          }
-
-          // Glow
-          const glowSize = size * 0.8;
-          const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
-          glowGradient.addColorStop(0, "rgba(200, 220, 255, 0.3)");
-          glowGradient.addColorStop(1, "rgba(200, 220, 255, 0)");
-
-          ctx.fillStyle = glowGradient;
-          ctx.beginPath();
-          ctx.arc(0, 0, glowSize, 0, 2 * Math.PI);
-          ctx.fill();
-
-          ctx.restore();
+        // After 1 second of OK gesture, activate black hole
+        if (okGestureStartTime > 0 && now - okGestureStartTime >= 1000 && !blackHole) {
+          blackHole = { x: crosshair.x, y: crosshair.y, startTime: now };
         }
       }
 
-      // Draw crosshair (only when plane exists)
-      if (plane) {
+      // Emit state for hand preview
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const angleToTarget = Math.atan2(crosshair.y - centerY, crosshair.x - centerX);
+
+      const event = new CustomEvent('landingAnimationState', {
+        detail: {
+          angle: angleToTarget,
+          isOK: okGestureStartTime > 0,
+        }
+      });
+      window.dispatchEvent(event);
+
+      // Draw planes
+      planes.forEach(plane => {
+        ctx.save();
+        ctx.translate(plane.x, plane.y);
+        const angle = Math.atan2(plane.vy, plane.vx);
+        ctx.rotate(angle);
+
+        const size = 84;
+        const sprite = Math.floor(now / 100) % 2 === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
+
+        if (sprite) {
+          ctx.drawImage(sprite, -size / 2, -size / 2, size, size);
+        }
+
+        // Glow
+        const glowSize = size * 0.8;
+        const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, glowSize);
+        glowGradient.addColorStop(0, "rgba(200, 220, 255, 0.3)");
+        glowGradient.addColorStop(1, "rgba(200, 220, 255, 0)");
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, glowSize, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.restore();
+      });
+
+      // Draw crosshair
+      if (planes.length > 0) {
         const size = 20;
         const gap = 10;
 
@@ -246,62 +293,62 @@ export default function LandingAnimation() {
         ctx.lineTo(crosshair.x + gap + size, crosshair.y);
         ctx.stroke();
 
-        // Center dot
         ctx.fillStyle = "#ff6b6b";
         ctx.beginPath();
         ctx.arc(crosshair.x, crosshair.y, 4, 0, 2 * Math.PI);
         ctx.fill();
       }
 
-      // Black hole physics and rendering
-      if (blackHole && blackHole.active) {
+      // Black hole
+      if (blackHole) {
         const time = now / 1000;
         drawBlackHole(blackHole.x, blackHole.y, time);
 
-        // Apply gravity to plane
-        if (plane) {
-          const dx = blackHole.x - plane.x;
-          const dy = blackHole.y - plane.y;
+        // Apply gravity to target plane (guaranteed consumption)
+        if (targetPlane) {
+          const dx = blackHole.x - targetPlane.x;
+          const dy = blackHole.y - targetPlane.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist < 150) {
-            const force = 500 / (dist * dist);
-            const maxForce = 2.0;
+          // Strong gravity within large radius (always catches)
+          if (dist < 300) {
+            // Variable force for realistic timing (0.8-2 seconds to consume)
+            const baseForce = 400 + Math.random() * 200; // Randomize per plane
+            const force = baseForce / (dist * dist);
+            const maxForce = 3.0; // Higher max force
             const cappedForce = Math.min(force, maxForce);
 
-            plane.vx += (dx / dist) * cappedForce;
-            plane.vy += (dy / dist) * cappedForce;
+            targetPlane.vx += (dx / dist) * cappedForce;
+            targetPlane.vy += (dy / dist) * cappedForce;
 
-            // Consume when very close
-            if (dist < 10) {
-              plane = null;
+            // Consume when close (guaranteed)
+            if (dist < 15) {
+              planes = planes.filter(p => p.id !== targetPlaneId);
+              totalKilled++;
+              targetPlaneId = null;
             }
           }
         }
 
-        // Close black hole 1.5 seconds after consuming
-        if (!plane && now - blackHole.startTime > 1500) {
+        // Close black hole after consuming
+        if (targetPlaneId === null && now - blackHole.startTime > 800) {
           blackHole = null;
+          okGestureStartTime = 0;
         }
       }
 
       requestAnimationFrame(animate);
     }
 
-    // Start animation
     animate();
 
-    // Resize handler
     const handleResize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     };
 
     window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 
 // Import animation dynamically (client-only)
@@ -9,8 +9,25 @@ const LandingAnimation = dynamic(() => import("@/components/LandingAnimation"), 
   ssr: false,
 });
 
+const HandPreview = dynamic(() => import("@/components/HandPreview"), {
+  ssr: false,
+});
+
 export default function Home() {
   const [showTrailer, setShowTrailer] = useState(false);
+  const [handAngle, setHandAngle] = useState(0);
+  const [isOK, setIsOK] = useState(false);
+
+  // Listen to animation events
+  useEffect(() => {
+    const handleAnimationState = (e: CustomEvent) => {
+      if (e.detail.angle !== undefined) setHandAngle(e.detail.angle);
+      if (e.detail.isOK !== undefined) setIsOK(e.detail.isOK);
+    };
+
+    window.addEventListener('landingAnimationState' as any, handleAnimationState as any);
+    return () => window.removeEventListener('landingAnimationState' as any, handleAnimationState as any);
+  }, []);
 
   return (
     <div style={{
@@ -201,7 +218,7 @@ export default function Home() {
             }}>Requiere cámara • Juega en segundos</p>
           </div>
 
-          {/* Video placeholder */}
+          {/* Hand Tutorial Preview */}
           <div style={{
             background: "rgba(255, 255, 255, 0.05)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -213,12 +230,10 @@ export default function Home() {
               aspectRatio: "16/9",
               background: "rgba(0, 0, 0, 0.3)",
               borderRadius: "12px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "4rem",
-              opacity: 0.3,
-            }}>🎮</div>
+              overflow: "hidden",
+            }}>
+              <HandPreview targetAngle={handAngle} isOK={isOK} />
+            </div>
           </div>
         </div>
       </section>
