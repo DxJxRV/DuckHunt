@@ -173,24 +173,16 @@ export default function Home() {
                   style={{
                     width: "min(280px, 30vw)",
                     aspectRatio: "16/9",
-                    background: `
-                      radial-gradient(
-                        ellipse at center,
-                        rgba(255, 107, 107, 0.18) 0%,
-                        rgba(138, 43, 226, 0.12) 50%,
-                        rgba(254, 202, 87, 0.08) 80%,
-                        transparent 100%
-                      )
-                    `,
+                    background: "rgba(255, 255, 255, 0.05)",
                     borderRadius: "30px",
-                    backdropFilter: "blur(15px)",
+                    padding: "1px",
+                    backdropFilter: "blur(20px)",
                     overflow: "hidden",
-                    border: "none",
                   }}
                 >
                   <div
                     style={{
-                      background: "rgba(0, 0, 0, 0.4)",
+                      background: "rgba(0, 0, 0, 0.3)",
                       borderRadius: "12px",
                       overflow: "hidden",
                       height: "100%",

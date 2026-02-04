@@ -421,7 +421,7 @@ export default function SectionContent({
             display: grid;
             grid-template-columns: 1fr 3fr; /* Mano 25% | Texto 75% */
             align-items: center;
-            padding: 0 5rem 2rem; /* Padding interior consistente */
+            padding: 16px 5rem; /* Padding interior consistente */
             margin: 0 auto;
             width: 100%;
             max-width: 100vw;
