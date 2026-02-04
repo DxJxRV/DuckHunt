@@ -47,22 +47,19 @@ export default function Home() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             const index = parseInt(entry.target.getAttribute("data-section-index") || "0");
+            console.log(`[SECTION VISIBLE] Sección ${index} (${entry.target.id})`);
             setActiveSection(index);
-            entry.target.classList.add("active");
-          } else {
-            entry.target.classList.remove("active");
           }
         });
       },
       {
         threshold: 0.5,
-        rootMargin: "-10% 0px",
+        rootMargin: "0px",
       }
     );
 
-    document.querySelectorAll(".fullscreen-section").forEach((section) => {
-      observer.observe(section);
-    });
+    const sections = document.querySelectorAll(".fullscreen-section");
+    sections.forEach((section) => observer.observe(section));
 
     return () => observer.disconnect();
   }, []);
@@ -147,13 +144,11 @@ export default function Home() {
           key={section.id}
           id={`section-${index}`}
           data-section-index={index}
-          className="fullscreen-section"
+          className="fullscreen-section active"
           style={{
             height: "100vh",
             scrollSnapAlign: "start",
             position: "relative",
-            opacity: 0,
-            transform: "scale(0.95)",
             transition: "opacity 0.6s ease-out, transform 0.6s ease-out",
           }}
         >

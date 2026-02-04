@@ -14,6 +14,7 @@ export default function SectionBackground({ config }: SectionBackgroundProps) {
         inset: 0,
         zIndex: -1,
         overflow: "hidden",
+        background: "#0a0a0a", // Fallback color
       }}
     >
       {/* Ilustración de fondo (si existe) */}
