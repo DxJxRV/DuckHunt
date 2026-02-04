@@ -64,14 +64,20 @@ export default function SectionContent({
           }
 
           .hero-title {
-            font-size: 4.5rem;
-            font-weight: 900;
-            line-height: 1.1;
+            font-family: var(--font-heading);
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 400;
+            line-height: 1.3;
+            letter-spacing: 0.02em;
             margin-bottom: 1.5rem;
             color: white;
           }
 
           .hero-title-gradient {
+            font-family: var(--font-body);
+            font-size: clamp(2.5rem, 5vw, 3.5rem); /* Mismo tamaño que título */
+            font-weight: 900;
+            line-height: 1.3;
             background: linear-gradient(135deg, #ff6b6b, #feca57, #ff9f43);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -79,10 +85,12 @@ export default function SectionContent({
           }
 
           .hero-description {
+            font-family: var(--font-body);
             font-size: 1.3rem;
-            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.85);
             margin-bottom: 2rem;
-            line-height: 1.6;
+            line-height: 1.7;
           }
 
           .hero-features {
@@ -93,36 +101,43 @@ export default function SectionContent({
           }
 
           .feature-chip {
-            padding: 0.5rem 1rem;
+            font-family: var(--font-heading);
+            padding: 0.6rem 1.2rem;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            borderradius: 20px;
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            font-size: 0.6rem;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.9);
           }
 
           .hero-cta {
+            font-family: var(--font-heading);
             padding: 1rem 2.5rem;
             background: linear-gradient(135deg, #ff6b6b, #ff5252);
             border: 2px solid #ff9f43;
             border-radius: 12px;
             color: white;
-            font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
             text-decoration: none;
             box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
             display: inline-block;
           }
 
           .hero-meta {
+            font-family: var(--font-body);
             font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.6);
           }
 
           /* Mobile responsive */
           @media (max-width: 768px) {
             .hero-container {
-              padding: 6rem 1.5rem 6rem !important; /* More bottom padding for mobile nav button */
+              padding: 7rem 1.5rem 7rem !important;
+              min-height: 100vh !important;
+              justify-content: flex-start !important;
             }
 
             .hero-content {
@@ -131,16 +146,31 @@ export default function SectionContent({
             }
 
             .hero-title {
-              font-size: 2.5rem;
+              font-size: 2rem;
+              margin-bottom: 1rem !important;
+            }
+
+            .hero-title-gradient {
+              font-size: 2rem !important;
             }
 
             .hero-description {
               font-size: 1.1rem;
+              margin-bottom: 1.5rem !important;
+            }
+
+            .hero-features {
+              margin-bottom: 1.5rem !important;
             }
 
             .hero-cta {
-              font-size: 1rem;
+              font-size: 0.75rem;
               padding: 0.8rem 2rem;
+            }
+
+            .feature-chip {
+              font-size: 0.5rem;
+              padding: 0.5rem 1rem;
             }
           }
         `}</style>
@@ -225,19 +255,22 @@ export default function SectionContent({
           }
 
           .tutorial-title {
-            font-size: 4.5rem;
-            font-weight: 900;
-            line-height: 1.1;
+            font-family: var(--font-heading);
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 400;
+            line-height: 1.3;
+            letter-spacing: 0.02em;
             color: white;
             margin: 0;
           }
 
           .tutorial-description {
+            font-family: var(--font-body);
             font-size: 2rem;
+            font-weight: 600;
             color: #feca57; /* Amarillo para texto explicativo */
             line-height: 1.6;
             margin: 0;
-            font-weight: 600;
           }
 
           .tutorial-gif-placeholder {
@@ -259,44 +292,167 @@ export default function SectionContent({
             z-index: 60; /* Por encima de aviones (z:50) */
           }
 
-          /* Mobile responsive - stack vertically */
+          /* Adaptive based on viewport dimensions */
+
+          /* Short screens (less vertical space) */
+          @media (max-height: 800px) {
+            .tutorial-container {
+              padding: 7rem 4rem 2rem !important;
+              gap: 2rem !important;
+            }
+
+            .tutorial-title {
+              font-size: clamp(1.8rem, 3.5vw, 2.8rem) !important;
+            }
+
+            .tutorial-description {
+              font-size: 1.5rem !important;
+            }
+
+            .tutorial-gif-placeholder {
+              max-height: 300px !important;
+            }
+          }
+
+          @media (max-height: 650px) {
+            .tutorial-container {
+              padding: 6rem 3rem 2rem !important;
+              gap: 1.5rem !important;
+              grid-template-rows: auto auto !important; /* Flexible rows */
+            }
+
+            .tutorial-title {
+              font-size: clamp(1.5rem, 3vw, 2.2rem) !important;
+            }
+
+            .tutorial-description {
+              font-size: 1.2rem !important;
+            }
+
+            .tutorial-gif-placeholder {
+              max-height: 200px !important;
+            }
+
+            .quadrant-text {
+              padding: 1rem !important;
+              padding-top: 1.5rem !important;
+            }
+          }
+
+          /* Narrow screens (less horizontal space) */
+          @media (max-width: 1400px) {
+            .tutorial-container {
+              padding: 8rem 3rem 4rem !important;
+              gap: 2.5rem !important;
+            }
+
+            .tutorial-title {
+              font-size: clamp(1.8rem, 3.5vw, 3rem) !important;
+            }
+
+            .tutorial-description {
+              font-size: 1.8rem !important;
+            }
+          }
+
+          @media (max-width: 1200px) {
+            .tutorial-container {
+              padding: 7rem 2.5rem 3rem !important;
+              gap: 2rem !important;
+            }
+
+            .tutorial-title {
+              font-size: clamp(1.6rem, 3.2vw, 2.5rem) !important;
+            }
+
+            .tutorial-description {
+              font-size: 1.5rem !important;
+            }
+
+            .tutorial-gif-placeholder {
+              max-height: 350px !important;
+            }
+          }
+
+          /* Combo: narrow AND short (landscape tablets, small laptops) */
+          @media (max-width: 1200px) and (max-height: 700px) {
+            .tutorial-container {
+              padding: 6rem 2rem 2rem !important;
+              gap: 1.5rem !important;
+              grid-template-rows: auto auto !important;
+            }
+
+            .tutorial-title {
+              font-size: clamp(1.4rem, 2.8vw, 2rem) !important;
+            }
+
+            .tutorial-description {
+              font-size: 1.2rem !important;
+            }
+
+            .tutorial-gif-placeholder {
+              max-height: 220px !important;
+            }
+          }
+
+          /* Mobile responsive - 3 vertical rows */
           @media (max-width: 1024px) {
             .tutorial-container {
               grid-template-columns: 1fr !important;
-              grid-template-rows: auto auto auto !important;
-              gap: 2rem !important;
-              padding: 7rem 2rem 8rem !important;
+              grid-template-rows: auto auto auto !important; /* 3 rows: título, GIF, texto */
+              gap: 2.5rem !important;
+              padding: 7rem 2rem 2rem !important; /* Less bottom padding */
             }
 
             .quadrant-title {
               text-align: center;
+              padding: 0 1rem;
+            }
+
+            .quadrant-gif {
+              padding: 0 1rem;
             }
 
             .quadrant-text {
-              padding: 1.5rem;
+              padding: 0 1.5rem;
               text-align: center;
+              align-items: center !important; /* Center vertically in mobile */
+              padding-top: 0 !important;
             }
 
             .tutorial-title {
-              font-size: 3rem;
+              font-size: 2.5rem;
             }
 
             .tutorial-description {
               font-size: 1.5rem;
             }
 
+            .tutorial-gif-placeholder {
+              max-height: 300px !important;
+            }
+
             .quadrant-hand-space {
-              display: none; /* Hide in mobile, HandPreview is centered */
+              display: none; /* Hide grid space, hand is position absolute */
             }
           }
 
           @media (max-width: 768px) {
+            .tutorial-container {
+              gap: 2rem !important;
+              padding: 6.5rem 1.5rem 1.5rem !important;
+            }
+
             .tutorial-title {
-              font-size: 2.2rem;
+              font-size: 2rem;
             }
 
             .tutorial-description {
               font-size: 1.2rem;
+            }
+
+            .tutorial-gif-placeholder {
+              max-height: 250px !important;
             }
           }
         `}</style>

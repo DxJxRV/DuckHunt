@@ -54,13 +54,21 @@ export default function HandPreviewBox({
 
       {/* Mobile responsive */}
       <style jsx>{`
+        @media (max-width: 1024px) {
+          .hand-preview-box {
+            width: calc(min(400px, 40vw) / 3) !important; /* 3x más pequeña */
+            bottom: 1rem !important;
+            left: ${position === "bottom-left" ? "1rem" : "auto"} !important;
+            right: ${position === "bottom-right" ? "1rem" : "auto"} !important;
+            transform: none !important;
+            padding: 0.5rem !important;
+          }
+        }
+
         @media (max-width: 768px) {
           .hand-preview-box {
-            width: 85vw !important;
-            max-width: 350px !important;
-            bottom: 6rem !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
+            width: 120px !important; /* Fijo y pequeño */
+            bottom: 1rem !important;
           }
         }
       `}</style>

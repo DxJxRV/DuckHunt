@@ -20,10 +20,22 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Google Fonts: Press Start 2P + Oxanium */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Oxanium:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
         <style>{`
           * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
+          }
+
+          :root {
+            --font-heading: 'Press Start 2P', monospace;
+            --font-body: 'Oxanium', system-ui, sans-serif;
           }
         `}</style>
       </head>
@@ -31,7 +43,7 @@ export default function RootLayout({
         style={{
           margin: 0,
           padding: 0,
-          fontFamily: "system-ui, -apple-system, sans-serif",
+          fontFamily: "var(--font-body)",
           backgroundColor: "#0a0a0a",
           color: "#ffffff",
           touchAction: "manipulation",

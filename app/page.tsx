@@ -110,25 +110,28 @@ export default function Home() {
         >
           <div
             style={{
-              fontSize: "1.3rem",
-              fontWeight: 700,
+              fontSize: "1.1rem",
+              fontFamily: "var(--font-heading)",
+              letterSpacing: "0.05em",
               background: "linear-gradient(135deg, #ff6b6b, #feca57)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}
           >
-            VOID HUNTER
+            VoidHunter.com
           </div>
 
           <Link
             href="/tracking"
             style={{
-              padding: "0.5rem 1.5rem",
+              padding: "0.6rem 1.5rem",
+              fontFamily: "var(--font-heading)",
+              fontSize: "0.75rem",
+              letterSpacing: "0.05em",
               background: "linear-gradient(135deg, #ff6b6b, #ff5252)",
               borderRadius: "20px",
               color: "white",
-              fontWeight: 600,
               textDecoration: "none",
               boxShadow: "0 4px 15px rgba(255, 107, 107, 0.3)",
             }}
@@ -174,6 +177,7 @@ export default function Home() {
       <MobileNavButton
         onClick={goToNextSection}
         isLastSection={activeSection === landingSections.length - 1}
+        currentHandPosition={landingSections[activeSection]?.handPosition || "bottom-right"}
       />
 
       {/* Global styles for transitions */}

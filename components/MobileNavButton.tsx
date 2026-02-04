@@ -5,13 +5,18 @@ import { ChevronDown } from "lucide-react";
 interface MobileNavButtonProps {
   onClick: () => void;
   isLastSection: boolean;
+  currentHandPosition: "bottom-right" | "bottom-left";
 }
 
 export default function MobileNavButton({
   onClick,
   isLastSection,
+  currentHandPosition,
 }: MobileNavButtonProps) {
   if (isLastSection) return null;
+
+  // Position opposite to hand
+  const buttonSide = currentHandPosition === "bottom-right" ? "left" : "right";
 
   return (
     <>
@@ -20,46 +25,52 @@ export default function MobileNavButton({
         className="mobile-nav-button"
         style={{
           position: "fixed",
-          bottom: "2rem",
-          left: "50%",
-          transform: "translateX(-50%)",
+          bottom: "1rem",
+          [buttonSide]: "1rem",
           zIndex: 50,
-          padding: "1rem 2rem",
-          background: "linear-gradient(135deg, #ff6b6b, #ff5252)",
-          border: "2px solid #ff9f43",
-          borderRadius: "50px",
-          color: "white",
-          fontWeight: 700,
-          fontSize: "1rem",
-          boxShadow: "0 8px 25px rgba(255, 107, 107, 0.5)",
+          padding: "0.8rem",
+          background: "rgba(255, 255, 255, 0.05)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: "20px",
+          backdropFilter: "blur(20px)",
           cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
+          width: "80px",
+          height: "80px",
         }}
       >
-        Siguiente
-        <ChevronDown size={20} />
+        <div
+          style={{
+            background: "rgba(0, 0, 0, 0.4)",
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <ChevronDown size={32} strokeWidth={2.5} color="#feca57" />
+        </div>
       </button>
 
-      {/* Bounce animation */}
+      {/* Subtle bounce animation */}
       <style jsx global>{`
-        @keyframes bounce {
+        @keyframes subtleBounce {
           0%,
           100% {
-            transform: translateY(0) translateX(-50%);
+            transform: translateY(0);
           }
           50% {
-            transform: translateY(-10px) translateX(-50%);
+            transform: translateY(-5px);
           }
         }
 
         .mobile-nav-button {
-          animation: bounce 2s ease-in-out infinite;
+          animation: subtleBounce 3s ease-in-out infinite;
         }
 
         .mobile-nav-button:active {
-          transform: scale(0.95) translateX(-50%);
+          transform: scale(0.9) !important;
         }
 
         /* Solo visible en mobile */
