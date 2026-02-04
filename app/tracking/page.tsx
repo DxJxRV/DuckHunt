@@ -134,7 +134,13 @@ export default function TrackingPage() {
       </main>
 
       {/* Responsive styles */}
-      <style jsx>{`
+      <style jsx global>{`
+        /* No-scroll for tracking page only */
+        html, body {
+          overscroll-behavior: none;
+          overflow: hidden;
+        }
+
         /* Tablet and small desktop */
         @media (max-width: 900px) and (orientation: landscape) {
           .sidebar {

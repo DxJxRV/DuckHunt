@@ -25,14 +25,6 @@ export default function RootLayout({
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
           }
-
-          html, body {
-            overscroll-behavior: none;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
-          }
         `}</style>
       </head>
       <body
