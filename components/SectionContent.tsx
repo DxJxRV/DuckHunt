@@ -9,11 +9,13 @@ const ShieldAngelGif = dynamic(() => import("@/components/ShieldAngelGif"), {
 interface SectionContentProps {
   config: Section["content"];
   handPosition: "bottom-right" | "bottom-left";
+  handPreviewBox?: React.ReactNode; // For tutorial slides
 }
 
 export default function SectionContent({
   config,
   handPosition,
+  handPreviewBox,
 }: SectionContentProps) {
   // Hero layout (primera sección)
   if (config.type === "hero") {
@@ -223,8 +225,10 @@ export default function SectionContent({
 
           {/* SECCIÓN INFERIOR: 25vh - Banda dividida (mano | texto) */}
           <div className="tutorial-bottom">
-            {/* Lado izquierdo: Espacio para mano (25%) */}
-            <div className="bottom-hand-space"></div>
+            {/* Lado izquierdo: Mano (integrada en grid) */}
+            <div className="bottom-hand-space">
+              {handPreviewBox}
+            </div>
 
             {/* Lado derecho: Texto (75%) */}
             <div className="bottom-text">
@@ -371,6 +375,27 @@ export default function SectionContent({
             width: 100%;
           }
 
+          /* Ajustes para pantallas medianas */
+          @media (max-width: 1400px) {
+            .tutorial-top {
+              padding: 8rem 3rem 1rem !important;
+            }
+
+            .tutorial-top-content {
+              gap: 2rem !important;
+            }
+          }
+
+          @media (max-width: 1200px) {
+            .tutorial-top {
+              padding: 8rem 2rem 1rem !important;
+            }
+
+            .tutorial-top-content {
+              gap: 1.5rem !important;
+            }
+          }
+
           .tutorial-title-wrapper {
             display: flex;
             align-items: center;
@@ -379,9 +404,35 @@ export default function SectionContent({
 
           .tutorial-gif-wrapper {
             width: 100%; /* Force full width */
+            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
+          }
+
+          .tutorial-gif-wrapper > div {
+            width: 100% !important;
+            max-width: none !important;
+            min-width: 600px; /* Ancho mínimo base */
+          }
+
+          /* Anchos específicos por breakpoint (solo desktop) */
+          @media (max-width: 1600px) and (min-width: 1401px) {
+            .tutorial-gif-wrapper > div {
+              min-width: 550px !important;
+            }
+          }
+
+          @media (max-width: 1400px) and (min-width: 1201px) {
+            .tutorial-gif-wrapper > div {
+              min-width: 480px !important;
+            }
+          }
+
+          @media (max-width: 1200px) and (min-width: 1025px) {
+            .tutorial-gif-wrapper > div {
+              min-width: 400px !important;
+            }
           }
 
           /* Sección inferior: 25vh - Banda dividida horizontalmente */
@@ -399,7 +450,18 @@ export default function SectionContent({
           .bottom-hand-space {
             display: flex;
             align-items: center;
-            justify-content: center; /* Centrado horizontal */
+            justify-content: flex-start; /* Align to left corner */
+            padding-left: 2rem;
+            position: relative; /* Create positioning context */
+          }
+
+          .bottom-hand-space .hand-preview-box {
+            position: relative !important; /* Override absolute */
+            left: 0 !important;
+            bottom: 0 !important;
+            right: auto !important;
+            transform: none !important;
+            margin: 0 !important;
           }
 
           .bottom-text {

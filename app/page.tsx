@@ -14,6 +14,10 @@ const LandingAnimation = dynamic(() => import("@/components/LandingAnimation"), 
   ssr: false,
 });
 
+const HandPreview = dynamic(() => import("@/components/HandPreview"), {
+  ssr: false,
+});
+
 export default function Home() {
   const [handAngle, setHandAngle] = useState(0);
   const [isOK, setIsOK] = useState(false);
@@ -163,15 +167,55 @@ export default function Home() {
           <SectionContent
             config={section.content}
             handPosition={section.handPosition}
+            handPreviewBox={
+              section.content.type === "tutorial" ? (
+                <div
+                  style={{
+                    width: "min(280px, 30vw)",
+                    aspectRatio: "16/9",
+                    background: `
+                      radial-gradient(
+                        ellipse at center,
+                        rgba(255, 107, 107, 0.18) 0%,
+                        rgba(138, 43, 226, 0.12) 50%,
+                        rgba(254, 202, 87, 0.08) 80%,
+                        transparent 100%
+                      )
+                    `,
+                    borderRadius: "30px",
+                    padding: "1.5rem",
+                    backdropFilter: "blur(15px)",
+                    boxShadow: `
+                      0 0 40px rgba(100, 100, 100, 0.4),
+                      0 0 60px rgba(60, 60, 60, 0.25)
+                    `,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "rgba(0, 0, 0, 0.4)",
+                      borderRadius: "12px",
+                      overflow: "hidden",
+                      height: "100%",
+                    }}
+                  >
+                    <HandPreview targetAngle={handAngle} isOK={isOK} />
+                  </div>
+                </div>
+              ) : null
+            }
           />
 
-          {/* Hand preview box (alternating position) */}
-          <HandPreviewBox
-            position={section.handPosition}
-            targetAngle={handAngle}
-            isOK={isOK}
-            compact={section.content.type === "tutorial"}
-          />
+          {/* Hand preview box (only for hero - floating) */}
+          {section.content.type === "hero" && (
+            <HandPreviewBox
+              position={section.handPosition}
+              targetAngle={handAngle}
+              isOK={isOK}
+              compact={false}
+            />
+          )}
         </section>
       ))}
 
