@@ -83,7 +83,7 @@ export const landingSections: Section[] = [
     },
     content: {
       type: "tutorial",
-      title: "👌 Haz OK para invocar el vacío",
+      title: "Haz OK para invocar el vacío",
       description: "Haz el gesto OK con tu mano. Se fija un agujero negro en tu retícula que succiona y destruye aviones cercanos por gravedad.",
       tutorialGif: "/gifs/ok-gesture.gif",
     },
@@ -103,7 +103,7 @@ export const landingSections: Section[] = [
     },
     content: {
       type: "tutorial",
-      title: "😇 Protege al ángel o pierde",
+      title: "Protege al ángel o pierde",
       description: "Los aviones atacan al Shield Angel. Destrúyelos con agujeros negros antes de que lo maten. Si el ángel llega a 0 HP, Game Over.",
       tutorialGif: "component:ShieldAngelGif",
     },

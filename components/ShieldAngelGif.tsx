@@ -385,7 +385,6 @@ export default function ShieldAngelGif() {
       style={{
         width: "100%",
         height: "100%",
-        maxHeight: "400px",
         aspectRatio: "16/9",
         background: "rgba(255, 255, 255, 0.05)",
         border: "2px dashed rgba(255, 255, 255, 0.2)",

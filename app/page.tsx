@@ -183,13 +183,9 @@ export default function Home() {
                       )
                     `,
                     borderRadius: "30px",
-                    padding: "1.5rem",
                     backdropFilter: "blur(15px)",
-                    boxShadow: `
-                      0 0 40px rgba(100, 100, 100, 0.4),
-                      0 0 60px rgba(60, 60, 60, 0.25)
-                    `,
                     overflow: "hidden",
+                    border: "none",
                   }}
                 >
                   <div

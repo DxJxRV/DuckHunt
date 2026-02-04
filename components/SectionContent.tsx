@@ -204,7 +204,7 @@ export default function SectionContent({
               <div className="tutorial-gif-wrapper">
                 {config.tutorialGif.startsWith("component:") ? (
                   config.tutorialGif === "component:ShieldAngelGif" ? (
-                    <div style={{ width: "100%", aspectRatio: "16/9" }}>
+                    <div style={{ width: "100%", aspectRatio: "16/9", maxHeight: "400px" }}>
                       <ShieldAngelGif />
                     </div>
                   ) : null
@@ -362,14 +362,15 @@ export default function SectionContent({
             align-items: center;
             justify-content: center;
             padding: 8rem 5rem 1rem; /* Padding interior consistente */
-            max-width: 1600px;
             margin: 0 auto;
             width: 100%;
+            max-width: 100vw;
+            box-sizing: border-box;
           }
 
           .tutorial-top-content {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 35% 65%;
             gap: 3rem;
             align-items: center;
             width: 100%;
@@ -404,7 +405,6 @@ export default function SectionContent({
 
           .tutorial-gif-wrapper {
             width: 100%; /* Force full width */
-            height: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -412,27 +412,7 @@ export default function SectionContent({
 
           .tutorial-gif-wrapper > div {
             width: 100% !important;
-            max-width: none !important;
-            min-width: 600px; /* Ancho mínimo base */
-          }
-
-          /* Anchos específicos por breakpoint (solo desktop) */
-          @media (max-width: 1600px) and (min-width: 1401px) {
-            .tutorial-gif-wrapper > div {
-              min-width: 550px !important;
-            }
-          }
-
-          @media (max-width: 1400px) and (min-width: 1201px) {
-            .tutorial-gif-wrapper > div {
-              min-width: 480px !important;
-            }
-          }
-
-          @media (max-width: 1200px) and (min-width: 1025px) {
-            .tutorial-gif-wrapper > div {
-              min-width: 400px !important;
-            }
+            max-width: 100% !important;
           }
 
           /* Sección inferior: 25vh - Banda dividida horizontalmente */
@@ -442,9 +422,11 @@ export default function SectionContent({
             grid-template-columns: 1fr 3fr; /* Mano 25% | Texto 75% */
             align-items: center;
             padding: 0 5rem 2rem; /* Padding interior consistente */
-            max-width: 1600px;
             margin: 0 auto;
             width: 100%;
+            max-width: 100vw;
+            border-top: 3px solid rgba(255, 255, 255, 0.1);
+            box-sizing: border-box;
           }
 
           .bottom-hand-space {
