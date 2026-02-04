@@ -17,6 +17,7 @@ export default function Home() {
   const [showTrailer, setShowTrailer] = useState(false);
   const [handAngle, setHandAngle] = useState(0);
   const [isOK, setIsOK] = useState(false);
+  const [resetKey, setResetKey] = useState(0); // For recycling animation component
 
   // Listen to animation events
   useEffect(() => {
@@ -25,8 +26,18 @@ export default function Home() {
       if (e.detail.isOK !== undefined) setIsOK(e.detail.isOK);
     };
 
+    const handleCycleComplete = () => {
+      // Recycle component every 6 planes (fresh start)
+      setResetKey(prev => prev + 1);
+    };
+
     window.addEventListener('landingAnimationState' as any, handleAnimationState as any);
-    return () => window.removeEventListener('landingAnimationState' as any, handleAnimationState as any);
+    window.addEventListener('animationCycleComplete' as any, handleCycleComplete);
+
+    return () => {
+      window.removeEventListener('landingAnimationState' as any, handleAnimationState as any);
+      window.removeEventListener('animationCycleComplete' as any, handleCycleComplete);
+    };
   }, []);
 
   return (
@@ -35,8 +46,8 @@ export default function Home() {
       position: "relative",
       overflowX: "hidden",
     }}>
-      {/* Animated Canvas */}
-      <LandingAnimation />
+      {/* Animated Canvas - Recycles every 6 planes */}
+      <LandingAnimation key={resetKey} />
 
       {/* Background */}
       <div style={{

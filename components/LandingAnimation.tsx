@@ -8,6 +8,8 @@ export default function LandingAnimation() {
   const planeSprite2Ref = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
+    console.log(`[MOUNT] 🎬 LandingAnimation montado`);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -35,7 +37,6 @@ export default function LandingAnimation() {
     let targetPlaneId: number | null = null;
     let okGestureStartTime: number = 0;
     let totalKilled = 0;
-    let initialWaveSpawned = false;
     let lastSpawn = 0;
 
     // Spawn single plane
@@ -75,16 +76,10 @@ export default function LandingAnimation() {
         spawnTime: now,
         ttl,
       });
+
+      console.log(`[SPAWN] Avión #${nextId - 1} | Total vivos: ${planes.length} | TTL: ${Math.round(ttl)}ms`);
     }
 
-    // Spawn initial wave
-    function spawnInitialWave() {
-      const count = 3 + Math.floor(Math.random() * 2); // 3-4 planes
-      for (let i = 0; i < count; i++) {
-        setTimeout(() => spawnPlane(), i * 500); // Stagger spawns
-      }
-      initialWaveSpawned = true;
-    }
 
     // Draw black hole
     function drawBlackHole(x: number, y: number, time: number) {
@@ -145,17 +140,13 @@ export default function LandingAnimation() {
     }
 
     // Animation loop
+    let animationFrameId: number;
     function animate() {
       const now = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Spawn initial wave
-      if (!initialWaveSpawned && planes.length === 0) {
-        spawnInitialWave();
-      }
-
-      // After initial wave, spawn 1 at a time
-      if (initialWaveSpawned && planes.length === 0 && !blackHole && now - lastSpawn > 3000) {
+      // Spawn 1 plane at a time (simple pattern)
+      if (planes.length === 0 && !blackHole && now - lastSpawn > 3000) {
         spawnPlane();
         lastSpawn = now;
       }
@@ -191,6 +182,7 @@ export default function LandingAnimation() {
         );
         targetPlaneId = oldest.id;
         okGestureStartTime = 0;
+        console.log(`[TARGET] Seleccionado avión #${targetPlaneId} | Edad: ${Math.round(now - oldest.spawnTime)}ms | TTL: ${oldest.ttl}ms`);
       }
 
       // If target plane was consumed or expired, clear target
@@ -215,11 +207,13 @@ export default function LandingAnimation() {
         // Check if target plane reached its TTL → activate OK gesture
         const planeAge = now - targetPlane.spawnTime;
         if (planeAge >= targetPlane.ttl && okGestureStartTime === 0 && !blackHole) {
+          console.log(`[OK GESTURE] Activado para avión #${targetPlaneId} | Edad: ${Math.round(planeAge)}ms >= TTL: ${Math.round(targetPlane.ttl)}ms`);
           okGestureStartTime = now; // Start OK gesture animation
         }
 
         // After 1 second of OK gesture, activate black hole
         if (okGestureStartTime > 0 && now - okGestureStartTime >= 1000 && !blackHole) {
+          console.log(`[BLACK HOLE] Activado en (${Math.round(crosshair.x)}, ${Math.round(crosshair.y)})`);
           blackHole = { x: crosshair.x, y: crosshair.y, startTime: now };
         }
       }
@@ -323,6 +317,7 @@ export default function LandingAnimation() {
 
             // Consume when close (guaranteed)
             if (dist < 15) {
+              console.log(`[CONSUME] Avión #${targetPlaneId} consumido | TotalKilled: ${totalKilled + 1} | Quedan: ${planes.length - 1} aviones`);
               planes = planes.filter(p => p.id !== targetPlaneId);
               totalKilled++;
               targetPlaneId = null;
@@ -332,12 +327,21 @@ export default function LandingAnimation() {
 
         // Close black hole after consuming
         if (targetPlaneId === null && now - blackHole.startTime > 800) {
+          console.log(`[BLACK HOLE CLOSE] Cerrado | TotalKilled: ${totalKilled} | Planes restantes: ${planes.length}`);
           blackHole = null;
           okGestureStartTime = 0;
+
+          // Auto-reset after 4 planes (prevents memory accumulation)
+          // Trigger AFTER black hole closes to ensure clean state
+          if (totalKilled >= 4) {
+            console.log(`[RESET] ⚠️ Reciclando componente después de ${totalKilled} aviones`);
+            const resetEvent = new CustomEvent('animationCycleComplete');
+            window.dispatchEvent(resetEvent);
+          }
         }
       }
 
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     }
 
     animate();
@@ -348,7 +352,12 @@ export default function LandingAnimation() {
     };
 
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+
+    return () => {
+      console.log(`[UNMOUNT] 🛑 LandingAnimation desmontado - Cancelando animationFrame #${animationFrameId}`);
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   return (
