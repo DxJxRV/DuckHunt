@@ -7,7 +7,7 @@ import {
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
-import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize, Smartphone, Undo, Redo } from "lucide-react";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -103,6 +103,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isMuted, setIsMuted] = useState<boolean>(true);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Refs
@@ -215,24 +216,30 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     }
   }, [isPausedProp]);
 
-  // Detect screen size changes
+  // Detect screen size and orientation changes
   useEffect(() => {
-    const checkScreenSize = () => {
+    const checkScreen = () => {
       const isMobileSize = window.matchMedia("(max-width: 1280px)").matches;
+      const isPortraitMode = window.matchMedia("(orientation: portrait)").matches;
       setIsMobile(isMobileSize);
+      setIsPortrait(isPortraitMode);
     };
 
     // Check initial state
-    checkScreenSize();
+    checkScreen();
 
     // Listen for changes
     const sizeQuery = window.matchMedia("(max-width: 1280px)");
-    const handler = () => checkScreenSize();
+    const orientationQuery = window.matchMedia("(orientation: portrait)");
+    const handler = () => checkScreen();
+
     sizeQuery.addEventListener("change", handler);
+    orientationQuery.addEventListener("change", handler);
     window.addEventListener("resize", handler);
 
     return () => {
       sizeQuery.removeEventListener("change", handler);
+      orientationQuery.removeEventListener("change", handler);
       window.removeEventListener("resize", handler);
     };
   }, []);
@@ -2468,6 +2475,88 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         </>
       )}
 
+
+      {/* Portrait mode suggestion */}
+      {isPortrait && (
+        <>
+          {/* Dark overlay background (60% opacity) */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              zIndex: 1999,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Content */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "2rem",
+              zIndex: 2000,
+            }}
+          >
+            <h2
+              style={{
+                fontFamily: "var(--font-heading)",
+                fontSize: "clamp(2rem, 8vw, 4rem)",
+                fontWeight: 400,
+                background: "linear-gradient(135deg, #feca57, #ff9f43)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                margin: 0,
+                textAlign: "center",
+                pointerEvents: "none",
+                padding: "0 1rem",
+              }}
+            >
+              Gira tu dispositivo
+            </h2>
+            {/* Icon container with glassmorphism */}
+            <div
+              style={{
+                padding: "2rem 3rem",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: "2rem",
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
+                <div style={{ transform: "rotate(-90deg)" }}>
+                  <Undo size={40} strokeWidth={2.5} color="#feca57" />
+                </div>
+              </div>
+              <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
+                <Smartphone size={80} strokeWidth={1.5} color="#feca57" />
+              </div>
+              <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
+                <div style={{ transform: "rotate(270deg) scaleY(-1)" }}>
+                  <Redo size={40} strokeWidth={2.5} color="#feca57" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Victory screen */}
       {victory && (
