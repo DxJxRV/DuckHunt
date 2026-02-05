@@ -106,6 +106,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showIOSInstructions, setShowIOSInstructions] = useState<boolean>(false);
+  const [canvasOverlayDimensions, setCanvasOverlayDimensions] = useState<{
+    width: string;
+    height: string;
+    top: string;
+    left: string;
+  }>({ width: "100%", height: "100%", top: "0", left: "0" });
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -254,6 +260,64 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
+
+  // Adjust canvas overlay to match video dimensions with object-fit: contain
+  useEffect(() => {
+    const adjustCanvasOverlay = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (!video || !canvas || !video.videoWidth || !video.videoHeight) return;
+
+      const container = video.parentElement;
+      if (!container) return;
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const videoAspectRatio = video.videoWidth / video.videoHeight;
+      const containerAspectRatio = containerWidth / containerHeight;
+
+      let displayWidth: number, displayHeight: number;
+
+      if (videoAspectRatio > containerAspectRatio) {
+        // Video is wider - fit to width
+        displayWidth = containerWidth;
+        displayHeight = containerWidth / videoAspectRatio;
+      } else {
+        // Video is taller - fit to height
+        displayHeight = containerHeight;
+        displayWidth = containerHeight * videoAspectRatio;
+      }
+
+      // Center position
+      const offsetX = (containerWidth - displayWidth) / 2;
+      const offsetY = (containerHeight - displayHeight) / 2;
+
+      setCanvasOverlayDimensions({
+        width: `${displayWidth}px`,
+        height: `${displayHeight}px`,
+        top: `${offsetY}px`,
+        left: `${offsetX}px`,
+      });
+    };
+
+    // Adjust on video metadata load
+    const video = videoRef.current;
+    if (video) {
+      video.addEventListener("loadedmetadata", adjustCanvasOverlay);
+      adjustCanvasOverlay(); // Initial call
+    }
+
+    // Adjust on window resize
+    window.addEventListener("resize", adjustCanvasOverlay);
+
+    return () => {
+      if (video) {
+        video.removeEventListener("loadedmetadata", adjustCanvasOverlay);
+      }
+      window.removeEventListener("resize", adjustCanvasOverlay);
+    };
+  }, [status]);
 
   useEffect(() => {
     let mounted = true;
@@ -2152,228 +2216,57 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     <div
       style={{
         width: "100%",
-        maxWidth: "1280px",
-        margin: "0 auto",
+        maxWidth: "100vw",
+        margin: "0",
       }}
       className="game-container"
     >
-      {/* HUD Banner - Above video (desktop) / Right sidebar (mobile) */}
+      {/* HUD Sidebar - Right sidebar (both mobile and desktop) */}
       {status === "ready" && (
         <div
           className="hud-banner"
-          style={
-            isMobile
-              ? {
-                  position: "fixed",
-                  right: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: "80px",
-                  height: "100dvh",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "flex-start",
-                  alignItems: "center",
-                  gap: "1.5rem",
-                  padding: "1.5rem 0.5rem",
-                  backdropFilter: "blur(20px) saturate(180%)",
-                  background: "rgba(10, 10, 10, 0.7)",
-                  borderLeft: "1px solid rgba(255, 255, 255, 0.1)",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.7rem",
-                  zIndex: 100,
-                  overflowY: "auto",
-                }
-              : {
-                  display: "flex",
-                  gap: "2rem",
-                  padding: "1rem 2rem",
-                  backdropFilter: "blur(20px) saturate(180%)",
-                  background: "rgba(10, 10, 10, 0.7)",
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                  borderRadius: "8px 8px 0 0",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.875rem",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }
-          }
+          style={{
+            position: "fixed",
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: isMobile ? "80px" : "120px",
+            height: "100dvh",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            gap: isMobile ? "1.5rem" : "2rem",
+            padding: isMobile ? "1.5rem 0.5rem" : "2rem 1rem",
+            backdropFilter: "blur(20px) saturate(180%)",
+            background: "rgba(10, 10, 10, 0.7)",
+            borderLeft: "1px solid rgba(255, 255, 255, 0.1)",
+            fontFamily: "var(--font-body)",
+            fontSize: isMobile ? "0.7rem" : "0.875rem",
+            zIndex: 100,
+            overflowY: "auto",
+          }}
         >
-          {/* Fullscreen Button - Mobile only, at top */}
-          {isMobile && (
-            <button
-              onClick={toggleFullscreen}
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
-                backdropFilter: "blur(20px)",
-                padding: "0.6rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: "#feca57",
-                minWidth: "48px",
-                minHeight: "48px",
-                width: "100%",
-                maxWidth: "60px",
-              }}
-            >
-              {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
-            </button>
-          )}
-
-          {/* Mute Button - at top for mobile */}
-          {isMobile && (
-            <button
-              onClick={toggleMute}
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
-                backdropFilter: "blur(20px)",
-                padding: "0.6rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.2s ease",
-                color: "#feca57",
-                minWidth: "48px",
-                minHeight: "48px",
-                width: "100%",
-                maxWidth: "60px",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.05)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-            >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-          )}
-
-          {/* HP - Large at top (mobile) */}
-          {isMobile ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-              <Cross
-                size={32}
-                color={playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"}
-              />
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
-                {playerHp}
-              </span>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Cross size={20} color={playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"} />
-              <span>
-                <strong>HP:</strong>{" "}
-                <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
-                  {playerHp}
-                </span>
-              </span>
-            </div>
-          )}
-
-          {/* Score & Planes - Combined in mobile, same row */}
-          {isMobile && (
-            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", width: "100%" }}>
-              {/* Score - 50% width */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem", width: "50%" }}>
-                <Star size={16} color="#feca57" />
-                <span style={{ fontSize: "0.65rem", color: "#888" }}>{score}</span>
-              </div>
-              {/* Planes - 50% width */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem", width: "50%" }}>
-                <Plane size={16} color="#feca57" />
-                <span style={{ fontSize: "0.65rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Planes Killed - Desktop only */}
-          {!isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Plane size={20} color="#feca57" />
-              <span>
-                <strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
-              </span>
-            </div>
-          )}
-
-          {/* Score - Desktop only */}
-          {!isMobile && (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Star size={20} color="#feca57" />
-              <span>
-                <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
-              </span>
-            </div>
-          )}
-
-          {/* Hand Detection Status */}
-          {isMobile ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-              <img
-                src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
-                alt="hand status"
-                style={{
-                  width: "22px",
-                  height: "22px",
-                  filter: `brightness(0) saturate(100%) ${
-                    isFistDetected ? "invert(47%) sepia(97%) saturate(1789%) hue-rotate(329deg) brightness(102%) contrast(101%)" :
-                    handsDetected.right ? "invert(85%) sepia(34%) saturate(1625%) hue-rotate(69deg) brightness(99%) contrast(103%)" :
-                    "invert(87%) sepia(42%) saturate(507%) hue-rotate(357deg) brightness(107%) contrast(94%)"
-                  }`
-                }}
-              />
-              <span style={{ fontSize: "0.65rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
-                {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
-              </span>
-            </div>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <img
-                src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
-                alt="hand status"
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  filter: `brightness(0) saturate(100%) ${
-                    isFistDetected ? "invert(47%) sepia(97%) saturate(1789%) hue-rotate(329deg) brightness(102%) contrast(101%)" :
-                    handsDetected.right ? "invert(85%) sepia(34%) saturate(1625%) hue-rotate(69deg) brightness(99%) contrast(103%)" :
-                    "invert(87%) sepia(42%) saturate(507%) hue-rotate(357deg) brightness(107%) contrast(94%)"
-                  }`
-                }}
-              />
-              <span style={{ fontSize: "0.75rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
-                {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
-              </span>
-            </div>
-          )}
-
-          {/* Mute Button - Desktop only at bottom */}
-          {!isMobile && (
-            <button
-              onClick={toggleMute}
-              style={{
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
-                backdropFilter: "blur(20px)",
-                padding: "0.4rem 0.8rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-                transition: "all 0.2s ease",
-                color: "#feca57",
-              }}
+          {/* Fullscreen Button - at top */}
+          <button
+            onClick={toggleFullscreen}
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              padding: isMobile ? "0.6rem" : "0.8rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease",
+              color: "#feca57",
+              minWidth: isMobile ? "48px" : "60px",
+              minHeight: isMobile ? "48px" : "60px",
+              width: "100%",
+              maxWidth: isMobile ? "60px" : "80px",
+            }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "scale(1.05)";
             }}
@@ -2381,12 +2274,90 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               e.currentTarget.style.transform = "scale(1)";
             }}
           >
-            {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
-              {isMuted ? "MUTED" : "ON"}
-            </span>
+            {isFullscreen ? <Minimize size={isMobile ? 20 : 24} /> : <Maximize size={isMobile ? 20 : 24} />}
           </button>
-          )}
+
+          {/* Mute Button - at top */}
+          <button
+            onClick={toggleMute}
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              padding: isMobile ? "0.6rem" : "0.8rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease",
+              color: "#feca57",
+              minWidth: isMobile ? "48px" : "60px",
+              minHeight: isMobile ? "48px" : "60px",
+              width: "100%",
+              maxWidth: isMobile ? "60px" : "80px",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            {isMuted ? <VolumeX size={isMobile ? 18 : 22} /> : <Volume2 size={isMobile ? 18 : 22} />}
+          </button>
+
+          {/* HP */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem" }}>
+            <Cross
+              size={isMobile ? 32 : 40}
+              color={playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"}
+            />
+            <span style={{
+              fontSize: isMobile ? "0.75rem" : "0.9rem",
+              fontWeight: "bold",
+              color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"
+            }}>
+              {playerHp}
+            </span>
+          </div>
+
+          {/* Score & Planes - Same row */}
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", width: "100%" }}>
+            {/* Score - 50% width */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", width: "50%" }}>
+              <Star size={isMobile ? 16 : 20} color="#feca57" />
+              <span style={{ fontSize: isMobile ? "0.65rem" : "0.75rem", color: "#888" }}>{score}</span>
+            </div>
+            {/* Planes - 50% width */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem", width: "50%" }}>
+              <Plane size={isMobile ? 16 : 20} color="#feca57" />
+              <span style={{ fontSize: isMobile ? "0.65rem" : "0.75rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
+            </div>
+          </div>
+
+          {/* Hand Detection Status */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem" }}>
+            <img
+              src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
+              alt="hand status"
+              style={{
+                width: isMobile ? "22px" : "28px",
+                height: isMobile ? "22px" : "28px",
+                filter: `brightness(0) saturate(100%) ${
+                  isFistDetected ? "invert(47%) sepia(97%) saturate(1789%) hue-rotate(329deg) brightness(102%) contrast(101%)" :
+                  handsDetected.right ? "invert(85%) sepia(34%) saturate(1625%) hue-rotate(69deg) brightness(99%) contrast(103%)" :
+                  "invert(87%) sepia(42%) saturate(507%) hue-rotate(357deg) brightness(107%) contrast(94%)"
+                }`
+              }}
+            />
+            <span style={{
+              fontSize: isMobile ? "0.65rem" : "0.75rem",
+              color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888")
+            }}>
+              {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
+            </span>
+          </div>
 
           {/* FPS Counter - Floating bottom right (mobile only) */}
           {isMobile && (
@@ -2409,20 +2380,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
       <div
         className="video-container"
-        style={
-          isMobile
-            ? {
-                position: "relative",
-                width: "calc(100% - 80px)",
-                height: "100dvh",
-                marginRight: "80px",
-              }
-            : {
-                position: "relative",
-                width: "100%",
-                height: "100dvh",
-              }
-        }
+        style={{
+          position: "relative",
+          width: isMobile ? "calc(100% - 80px)" : "calc(100% - 120px)",
+          height: "100dvh",
+          marginRight: isMobile ? "80px" : "120px",
+        }}
       >
         {/* Video element */}
         <video
@@ -2431,7 +2394,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           display: status === "ready" ? "block" : "none",
           width: "100%",
           height: "100%",
-          objectFit: "cover",
+          objectFit: "contain",
           transform: "scaleX(-1)", // Mirror video
           borderRadius: "8px",
         }}
@@ -2444,10 +2407,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         ref={canvasRef}
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
+          top: canvasOverlayDimensions.top,
+          left: canvasOverlayDimensions.left,
+          width: canvasOverlayDimensions.width,
+          height: canvasOverlayDimensions.height,
           transform: "scaleX(-1)", // Mirror canvas
           pointerEvents: "auto",
           cursor: "crosshair",
