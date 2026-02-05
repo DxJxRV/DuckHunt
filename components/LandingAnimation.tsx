@@ -52,6 +52,8 @@ export default function LandingAnimation({ activeSection = 0 }: LandingAnimation
 
     // Spawn single plane
     function spawnPlane() {
+      if (!canvas) return;
+
       const edge = Math.floor(Math.random() * 4);
       let x, y, vx, vy;
       const speed = 2 + Math.random() * 2;
@@ -94,6 +96,8 @@ export default function LandingAnimation({ activeSection = 0 }: LandingAnimation
 
     // Draw black hole
     function drawBlackHole(x: number, y: number, time: number, scale: number) {
+      if (!ctx) return;
+
       const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150 * scale);
       outerGlow.addColorStop(0, "rgba(138, 43, 226, 0.15)");
       outerGlow.addColorStop(0.5, "rgba(75, 0, 130, 0.08)");
@@ -153,6 +157,8 @@ export default function LandingAnimation({ activeSection = 0 }: LandingAnimation
     // Animation loop
     let animationFrameId: number;
     function animate() {
+      if (!ctx || !canvas) return;
+
       const now = performance.now();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 

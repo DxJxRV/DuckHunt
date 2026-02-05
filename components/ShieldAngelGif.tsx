@@ -128,6 +128,8 @@ export default function ShieldAngelGif() {
 
     // Update bullets (movement + collision)
     function updateBullets() {
+      if (!canvas) return;
+
       bullets = bullets.filter((bullet) => {
         bullet.x += bullet.vx;
         bullet.y += bullet.vy;
@@ -154,6 +156,8 @@ export default function ShieldAngelGif() {
 
     // Draw angel with HP-based sprite
     function drawAngel(now: number) {
+      if (!ctx || !canvas) return;
+
       const time = now / 1000;
       const hpRatio = angelHp / 100;
 
@@ -198,6 +202,8 @@ export default function ShieldAngelGif() {
 
     // Draw HP bar
     function drawHpBar() {
+      if (!ctx || !canvas) return;
+
       const hpRatio = angelHp / 100;
 
       const barWidth = Math.min(canvas.width * 0.35, 160);
@@ -223,6 +229,8 @@ export default function ShieldAngelGif() {
 
     // Draw planes
     function drawPlanes(now: number) {
+      if (!ctx || !canvas) return;
+
       const spriteIndex = Math.floor(now / 100) % 2;
       const sprite =
         spriteIndex === 0 ? planeSprite1Ref.current : planeSprite2Ref.current;
@@ -258,6 +266,8 @@ export default function ShieldAngelGif() {
 
     // Draw bullets
     function drawBullets() {
+      if (!ctx) return;
+
       bullets.forEach((bullet) => {
         // Bullet core
         ctx.fillStyle = "#ff6b6b";
@@ -275,6 +285,8 @@ export default function ShieldAngelGif() {
 
     // Draw Game Over screen
     function drawGameOver(now: number) {
+      if (!ctx || !canvas) return;
+
       const elapsed = now - gameOverTime;
       const flashOpacity = Math.max(0, 0.5 - (elapsed / 1000) * 0.5);
 
@@ -308,6 +320,8 @@ export default function ShieldAngelGif() {
 
     // Reset animation
     function resetAnimation(now: number) {
+      if (!canvas) return;
+
       angelHp = 100;
       angelX = canvas.width / 2;
       angelY = canvas.height / 2;
@@ -335,6 +349,8 @@ export default function ShieldAngelGif() {
 
     // Main animation loop
     function animate() {
+      if (!ctx || !canvas) return;
+
       const now = performance.now();
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
