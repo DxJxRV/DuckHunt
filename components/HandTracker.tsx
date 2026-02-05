@@ -2725,75 +2725,155 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               left: 0,
               width: "100%",
               height: "100%",
-              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              backgroundColor: "rgba(0, 0, 0, 0.7)",
               zIndex: 2000,
             }}
           />
-          {/* Modal content */}
+          {/* Modal content - Landscape optimized */}
           <div
             style={{
               position: "fixed",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              padding: "2rem",
+              padding: "1.5rem 2rem",
               background: "rgba(10, 10, 10, 0.95)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               borderRadius: "20px",
               backdropFilter: "blur(20px)",
               zIndex: 2001,
-              maxWidth: "90%",
-              width: "400px",
+              maxWidth: "85%",
+              maxHeight: "85vh",
+              width: "min(700px, 85vw)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1rem",
             }}
           >
+            {/* Title */}
             <h3 style={{
               fontFamily: "var(--font-heading)",
-              fontSize: "1.2rem",
+              fontSize: "0.9rem",
               color: "#ff6b6b",
-              marginBottom: "1rem",
+              margin: 0,
               textAlign: "center",
             }}>
               iOS no soporta fullscreen 😔
             </h3>
             <p style={{
               fontFamily: "var(--font-body)",
-              fontSize: "0.9rem",
+              fontSize: "0.7rem",
               color: "#feca57",
-              marginBottom: "1.5rem",
-              lineHeight: "1.6",
+              margin: "0.3rem 0 0 0",
+              textAlign: "center",
+              lineHeight: "1.4",
             }}>
-              Para jugar en pantalla completa:
+              Si te gusta el juego y quieres experimentar la pantalla completa, puedes instalar la app, no tarda ni 10 segundos
             </p>
-            <ol style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "0.85rem",
-              color: "#ffffff",
-              lineHeight: "1.8",
-              paddingLeft: "1.5rem",
-              marginBottom: "1.5rem",
+
+            {/* Steps - Horizontal layout */}
+            <div style={{
+              display: "flex",
+              gap: "1.5rem",
+              alignItems: "flex-start",
             }}>
-              <li>Presiona el botón <strong style={{ color: "#feca57" }}>Compartir</strong> (📤) en la barra inferior de Safari</li>
-              <li>Selecciona <strong style={{ color: "#feca57" }}>"Agregar a pantalla de inicio"</strong></li>
-              <li>Abre VoidHunter desde tu pantalla de inicio</li>
-              <li>¡Juega sin barras! 🎮</li>
-            </ol>
+              {/* Step 1 */}
+              <div style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.8rem",
+              }}>
+                <div style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "0.7rem",
+                  color: "#ff6b6b",
+                }}>
+                  1. PRESIONA SHARE
+                </div>
+                <img
+                  src="/images/share.jpeg"
+                  alt="Share button"
+                  style={{
+                    width: "100%",
+                    maxWidth: "200px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                  }}
+                />
+                <p style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.7rem",
+                  color: "#888",
+                  margin: 0,
+                  textAlign: "center",
+                }}>
+                  En la barra de Safari
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "0.8rem",
+              }}>
+                <div style={{
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "0.7rem",
+                  color: "#ff6b6b",
+                }}>
+                  2. AGREGAR A INICIO
+                </div>
+                <img
+                  src="/images/agregar-al-inicio.jpeg"
+                  alt="Add to home screen"
+                  style={{
+                    width: "100%",
+                    maxWidth: "200px",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                  }}
+                />
+                <p style={{
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.7rem",
+                  color: "#888",
+                  margin: 0,
+                  textAlign: "center",
+                }}>
+                  Busca esta opción en el menú
+                </p>
+              </div>
+            </div>
+
+            {/* Close button */}
             <button
               onClick={() => setShowIOSInstructions(false)}
               style={{
-                width: "100%",
-                padding: "0.8rem",
+                padding: "0.7rem",
                 fontFamily: "var(--font-heading)",
-                fontSize: "0.75rem",
+                fontSize: "0.65rem",
                 letterSpacing: "0.05em",
                 background: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
+                borderRadius: "15px",
                 backdropFilter: "blur(20px)",
-                color: "white",
+                color: "#feca57",
                 cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
               }}
             >
-              Entendido
+              ENTENDIDO
             </button>
           </div>
         </>

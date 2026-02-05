@@ -91,7 +91,7 @@ export default function TrackingPage() {
           style={{
             writingMode: "vertical-rl",
             transform: "rotate(180deg)",
-            fontSize: "1.2rem",
+            fontSize: "1.8rem",
             fontWeight: "bold",
             background: "linear-gradient(to bottom, #ff6b6b, #feca57)",
             WebkitBackgroundClip: "text",
@@ -134,6 +134,13 @@ export default function TrackingPage() {
           overflow: hidden;
         }
 
+        /* Mobile base (all mobile sizes including landscape) */
+        @media (max-width: 1280px) {
+          .sidebar a[title="Back to Home"] {
+            font-size: 1.5rem !important;
+          }
+        }
+
         /* Tablet and small desktop */
         @media (max-width: 900px) and (orientation: landscape) {
           .sidebar {
@@ -143,7 +150,7 @@ export default function TrackingPage() {
           }
 
           .sidebar a[title="Back to Home"] {
-            font-size: 0.9rem !important;
+            font-size: 1.35rem !important;
           }
 
           .sidebar a[title="Back to Home"] :global(svg) {
@@ -161,7 +168,7 @@ export default function TrackingPage() {
           }
 
           .sidebar a[title="Back to Home"] {
-            font-size: 0.65rem !important;
+            font-size: 1rem !important;
             letter-spacing: 0.05em !important;
           }
 
@@ -179,7 +186,7 @@ export default function TrackingPage() {
           }
 
           .sidebar a[title="Back to Home"] {
-            font-size: 0.55rem !important;
+            font-size: 0.8rem !important;
             letter-spacing: 0.03em !important;
           }
         }
