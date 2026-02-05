@@ -226,7 +226,7 @@ export default function TrackingPage() {
           >
             {/* Title */}
             <h3 style={{
-              fontFamily: "var(--font-heading)",
+              fontFamily: "'Press Start 2P', monospace",
               fontSize: "0.9rem",
               color: "#ff6b6b",
               margin: 0,
@@ -235,7 +235,7 @@ export default function TrackingPage() {
               iOS no soporta fullscreen 😔
             </h3>
             <p style={{
-              fontFamily: "var(--font-body)",
+              fontFamily: "'Oxanium', sans-serif",
               fontSize: "0.7rem",
               color: "#feca57",
               margin: "0.3rem 0 0 0",
@@ -260,7 +260,7 @@ export default function TrackingPage() {
                 gap: "0.8rem",
               }}>
                 <div style={{
-                  fontFamily: "var(--font-heading)",
+                  fontFamily: "'Press Start 2P', monospace",
                   fontSize: "0.7rem",
                   color: "#ff6b6b",
                 }}>
@@ -277,7 +277,7 @@ export default function TrackingPage() {
                   }}
                 />
                 <p style={{
-                  fontFamily: "var(--font-body)",
+                  fontFamily: "'Oxanium', sans-serif",
                   fontSize: "0.7rem",
                   color: "#888",
                   margin: 0,
@@ -296,7 +296,7 @@ export default function TrackingPage() {
                 gap: "0.8rem",
               }}>
                 <div style={{
-                  fontFamily: "var(--font-heading)",
+                  fontFamily: "'Press Start 2P', monospace",
                   fontSize: "0.7rem",
                   color: "#ff6b6b",
                 }}>
@@ -313,7 +313,7 @@ export default function TrackingPage() {
                   }}
                 />
                 <p style={{
-                  fontFamily: "var(--font-body)",
+                  fontFamily: "'Oxanium', sans-serif",
                   fontSize: "0.7rem",
                   color: "#888",
                   margin: 0,
@@ -329,7 +329,7 @@ export default function TrackingPage() {
               onClick={() => setShowIOSInstructions(false)}
               style={{
                 padding: "0.7rem",
-                fontFamily: "var(--font-heading)",
+                fontFamily: "'Press Start 2P', monospace",
                 fontSize: "0.65rem",
                 letterSpacing: "0.05em",
                 background: "rgba(255, 255, 255, 0.05)",

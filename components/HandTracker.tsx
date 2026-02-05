@@ -104,6 +104,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
+  const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [canvasOverlayDimensions, setCanvasOverlayDimensions] = useState<{
     width: string;
     height: string;
@@ -196,6 +198,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const isPausedRef = useRef<boolean>(false);
   const gameOverRef = useRef<boolean>(false);
   const victoryRef = useRef<boolean>(false);
+  const countdownRef = useRef<number | null>(null);
 
   // Sync isMuted state to ref
   useEffect(() => {
@@ -216,6 +219,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   useEffect(() => {
     victoryRef.current = victory;
   }, [victory]);
+
+  // Sync countdown state to ref
+  useEffect(() => {
+    countdownRef.current = countdown;
+  }, [countdown]);
 
   // Sync isPausedProp to state
   useEffect(() => {
@@ -314,6 +322,22 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   useEffect(() => {
     spriteScaleRef.current = isMobile ? 1.35 : 1.0;
   }, [isMobile]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null || countdown === 0) return;
+
+    const timer = setTimeout(() => {
+      if (countdown > 1) {
+        setCountdown(countdown - 1);
+      } else {
+        // Countdown finished
+        setCountdown(null);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   useEffect(() => {
     let mounted = true;
@@ -504,6 +528,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         }
 
         setStatus("ready");
+
+        // Start countdown
+        setCountdown(3);
 
         // Start detection loop
         detectHands();
@@ -882,6 +909,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     }
 
     console.log("Game reset complete!");
+
+    // Start countdown
+    setCountdown(3);
   }
 
   function spawnDuck(canvasWidth: number, canvasHeight: number) {
@@ -1115,9 +1145,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         spawnPlaneAirParticles();
       }
 
-      // Update factory progress and spawn planes
+      // Update factory progress and spawn planes (pause during countdown)
       const alivePlanes = ducksRef.current.filter((d) => d.alive).length;
-      const canBuildMore = alivePlanes < MAX_PLANES_ALIVE && totalSpawnedRef.current < TOTAL_PLANES;
+      const canBuildMore = alivePlanes < MAX_PLANES_ALIVE && totalSpawnedRef.current < TOTAL_PLANES && countdownRef.current === null;
 
       if (canBuildMore) {
         // Increment factory progress (fills in 3 seconds at 60fps: 1/(3*60) = 0.00556)
@@ -2276,7 +2306,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         >
           {/* Reset Button - at top */}
           <button
-            onClick={resetGame}
+            onClick={() => setShowResetConfirmation(true)}
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -2743,6 +2773,203 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         </>
       )}
 
+      {/* Reset Confirmation Modal */}
+      {showResetConfirmation && (
+        <>
+          {/* Dark overlay */}
+          <div
+            onClick={() => setShowResetConfirmation(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              zIndex: 2000,
+            }}
+          />
+          {/* Modal content */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              padding: "1.5rem 2rem",
+              background: "rgba(10, 10, 10, 0.95)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              zIndex: 2001,
+              maxWidth: "90%",
+              width: "min(400px, 90vw)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.2rem",
+              alignItems: "center",
+            }}
+          >
+            {/* Icon */}
+            <div style={{
+              width: "60px",
+              height: "60px",
+              borderRadius: "50%",
+              background: "rgba(255, 107, 107, 0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <RotateCcw size={32} color="#ff6b6b" />
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "0.9rem",
+              color: "#ff6b6b",
+              margin: 0,
+              textAlign: "center",
+            }}>
+              ¿Reiniciar partida?
+            </h3>
+
+            {/* Message */}
+            <p style={{
+              fontFamily: "var(--font-body)",
+              fontSize: "0.75rem",
+              color: "#888",
+              margin: 0,
+              textAlign: "center",
+              lineHeight: "1.5",
+            }}>
+              Se perderá tu progreso actual
+            </p>
+
+            {/* Buttons */}
+            <div style={{
+              display: "flex",
+              gap: "1rem",
+              width: "100%",
+            }}>
+              <button
+                onClick={() => setShowResetConfirmation(false)}
+                style={{
+                  flex: 1,
+                  padding: "0.8rem",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.05em",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                  borderRadius: "15px",
+                  backdropFilter: "blur(20px)",
+                  color: "#888",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  e.currentTarget.style.color = "#ffffff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  e.currentTarget.style.color = "#888";
+                }}
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={() => {
+                  setShowResetConfirmation(false);
+                  resetGame();
+                }}
+                style={{
+                  flex: 1,
+                  padding: "0.8rem",
+                  fontFamily: "var(--font-heading)",
+                  fontSize: "0.65rem",
+                  letterSpacing: "0.05em",
+                  background: "rgba(255, 107, 107, 0.1)",
+                  border: "1px solid rgba(255, 107, 107, 0.3)",
+                  borderRadius: "15px",
+                  backdropFilter: "blur(20px)",
+                  color: "#ff6b6b",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 107, 107, 0.2)";
+                  e.currentTarget.style.color = "#ff5252";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "rgba(255, 107, 107, 0.1)";
+                  e.currentTarget.style.color = "#ff6b6b";
+                }}
+              >
+                REINICIAR
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Countdown overlay */}
+      {countdown !== null && (
+        <>
+          {/* Dark overlay background (30% opacity) */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              zIndex: 999,
+              pointerEvents: "none",
+            }}
+          />
+          {/* Countdown number */}
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 1000,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'Press Start 2P', monospace",
+                fontSize: "clamp(6rem, 20vw, 12rem)",
+                fontWeight: 400,
+                color:
+                  countdown === 3 ? "#ff6b6b" :
+                  countdown === 2 ? "#feca57" :
+                  "#00ff88",
+                margin: 0,
+                textAlign: "center",
+                animation: "pulse-countdown 1s ease-in-out",
+                textShadow:
+                  countdown === 3 ? "0 0 40px rgba(255, 107, 107, 0.8)" :
+                  countdown === 2 ? "0 0 40px rgba(254, 202, 87, 0.8)" :
+                  "0 0 40px rgba(0, 255, 136, 0.8)",
+              }}
+            >
+              {countdown}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Error message */}
       {status === "error" && (
         <div
@@ -2830,6 +3057,21 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           }
           75% {
             transform: rotate(15deg);
+          }
+        }
+
+        @keyframes pulse-countdown {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
           }
         }
 
