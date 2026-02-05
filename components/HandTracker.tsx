@@ -7,7 +7,7 @@ import {
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
-import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize, Smartphone, Undo, Redo, Cross, Plane, Star } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Hand, Smartphone, Undo, Redo, Cross, Plane, Star, RotateCcw } from "lucide-react";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -104,8 +104,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [showIOSInstructions, setShowIOSInstructions] = useState<boolean>(false);
   const [canvasOverlayDimensions, setCanvasOverlayDimensions] = useState<{
     width: string;
     height: string;
@@ -252,16 +250,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       orientationQuery.removeEventListener("change", handler);
       window.removeEventListener("resize", handler);
     };
-  }, []);
-
-  // Detect fullscreen changes
-  useEffect(() => {
-    const handler = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
   // Adjust canvas overlay to match video dimensions with object-fit: contain
@@ -805,30 +793,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     });
   }
 
-  async function toggleFullscreen() {
-    // Detect iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-
-    if (isIOS) {
-      // Show instructions modal for iOS
-      setShowIOSInstructions(true);
-      return;
-    }
-
-    // Standard fullscreen for other devices
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-        setIsFullscreen(true);
-      } else {
-        await document.exitFullscreen();
-        setIsFullscreen(false);
-      }
-    } catch (e) {
-      console.log("Fullscreen not available");
-    }
-  }
-
   function initializeDucks(canvasWidth: number, canvasHeight: number) {
     // Don't spawn any ducks initially - they'll spawn from factory
     setDucks([]);
@@ -870,6 +834,54 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
     factoryPositionRef.current = { x: factoryX, y: factoryY, corner };
     console.log(`Factory initialized at corner ${corner}: (${factoryX}, ${factoryY})`);
+  }
+
+  // Reset game without reloading page (keeps camera and MediaPipe active)
+  function resetGame() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    console.log("Resetting game...");
+
+    // Reset all game states
+    setPlayerHp(100);
+    setGameOver(false);
+    setVictory(false);
+    setScore(0);
+    setTotalSpawned(0);
+    setPlanesKilled(0);
+    setDucks([]);
+    setBullets([]);
+    setParticles([]);
+    setHitMessage(null);
+    setGameOverTime(0);
+    setVictoryTime(0);
+
+    // Reset all game refs
+    ducksRef.current = [];
+    bulletsRef.current = [];
+    particlesRef.current = [];
+    totalSpawnedRef.current = 0;
+    planesKilledRef.current = 0;
+    gameOverRef.current = false;
+    victoryRef.current = false;
+    lastSpawnTimeRef.current = performance.now();
+    factoryProgressRef.current = 0;
+
+    // Re-initialize game positions
+    initializeDucks(canvas.width, canvas.height);
+
+    // Reset shield position to center
+    shieldPositionRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+    shieldTargetRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+    lastShieldMoveRef.current = performance.now();
+
+    // Reset crosshair to center
+    if (crosshairPositionRef.current) {
+      crosshairPositionRef.current = { x: canvas.width / 2, y: canvas.height / 2 };
+    }
+
+    console.log("Game reset complete!");
   }
 
   function spawnDuck(canvasWidth: number, canvasHeight: number) {
@@ -2262,9 +2274,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             overflowY: "auto",
           }}
         >
-          {/* Fullscreen Button - at top */}
+          {/* Reset Button - at top */}
           <button
-            onClick={toggleFullscreen}
+            onClick={resetGame}
             style={{
               background: "rgba(255, 255, 255, 0.05)",
               border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -2276,7 +2288,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               alignItems: "center",
               justifyContent: "center",
               transition: "all 0.2s ease",
-              color: "#feca57",
+              color: "#ff6b6b",
               minWidth: isMobile ? "48px" : "60px",
               minHeight: isMobile ? "48px" : "60px",
               width: "100%",
@@ -2284,12 +2296,15 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.color = "#ff5252";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.color = "#ff6b6b";
             }}
+            title="Reset Game"
           >
-            {isFullscreen ? <Minimize size={isMobile ? 20 : 24} /> : <Maximize size={isMobile ? 20 : 24} />}
+            <RotateCcw size={isMobile ? 20 : 24} />
           </button>
 
           {/* Mute Button - at top */}
@@ -2638,7 +2653,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               VICTORY
             </h2>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => resetGame()}
               style={{
                 padding: "1rem 2.5rem",
                 fontFamily: "var(--font-heading)",
@@ -2707,7 +2722,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               GAME OVER
             </h2>
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => resetGame()}
               style={{
                 padding: "1rem 2.5rem",
                 fontFamily: "var(--font-heading)",
@@ -2723,172 +2738,6 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               }}
             >
               Volver a jugar
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* iOS PWA Instructions Modal */}
-      {showIOSInstructions && (
-        <>
-          {/* Dark overlay */}
-          <div
-            onClick={() => setShowIOSInstructions(false)}
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              backgroundColor: "rgba(0, 0, 0, 0.7)",
-              zIndex: 2000,
-            }}
-          />
-          {/* Modal content - Landscape optimized */}
-          <div
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              padding: "1.5rem 2rem",
-              background: "rgba(10, 10, 10, 0.95)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "20px",
-              backdropFilter: "blur(20px)",
-              zIndex: 2001,
-              maxWidth: "85%",
-              maxHeight: "85vh",
-              width: "min(700px, 85vw)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1rem",
-            }}
-          >
-            {/* Title */}
-            <h3 style={{
-              fontFamily: "var(--font-heading)",
-              fontSize: "0.9rem",
-              color: "#ff6b6b",
-              margin: 0,
-              textAlign: "center",
-            }}>
-              iOS no soporta fullscreen 😔
-            </h3>
-            <p style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "0.7rem",
-              color: "#feca57",
-              margin: "0.3rem 0 0 0",
-              textAlign: "center",
-              lineHeight: "1.4",
-            }}>
-              Si te gusta el juego y quieres experimentar la pantalla completa, puedes instalar la app, no tarda ni 10 segundos
-            </p>
-
-            {/* Steps - Horizontal layout */}
-            <div style={{
-              display: "flex",
-              gap: "1.5rem",
-              alignItems: "flex-start",
-            }}>
-              {/* Step 1 */}
-              <div style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.8rem",
-              }}>
-                <div style={{
-                  fontFamily: "var(--font-heading)",
-                  fontSize: "0.7rem",
-                  color: "#ff6b6b",
-                }}>
-                  1. PRESIONA SHARE
-                </div>
-                <img
-                  src="/images/share.jpeg"
-                  alt="Share button"
-                  style={{
-                    width: "100%",
-                    maxWidth: "200px",
-                    borderRadius: "12px",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                  }}
-                />
-                <p style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.7rem",
-                  color: "#888",
-                  margin: 0,
-                  textAlign: "center",
-                }}>
-                  En la barra de Safari
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "0.8rem",
-              }}>
-                <div style={{
-                  fontFamily: "var(--font-heading)",
-                  fontSize: "0.7rem",
-                  color: "#ff6b6b",
-                }}>
-                  2. AGREGAR A INICIO
-                </div>
-                <img
-                  src="/images/agregar-al-inicio.jpeg"
-                  alt="Add to home screen"
-                  style={{
-                    width: "100%",
-                    maxWidth: "200px",
-                    borderRadius: "12px",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                  }}
-                />
-                <p style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.7rem",
-                  color: "#888",
-                  margin: 0,
-                  textAlign: "center",
-                }}>
-                  Busca esta opción en el menú
-                </p>
-              </div>
-            </div>
-
-            {/* Close button */}
-            <button
-              onClick={() => setShowIOSInstructions(false)}
-              style={{
-                padding: "0.7rem",
-                fontFamily: "var(--font-heading)",
-                fontSize: "0.65rem",
-                letterSpacing: "0.05em",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "15px",
-                backdropFilter: "blur(20px)",
-                color: "#feca57",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-              }}
-            >
-              ENTENDIDO
             </button>
           </div>
         </>
