@@ -2246,75 +2246,80 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             </button>
           )}
 
-          {/* FPS & Score - Combined in mobile */}
+          {/* HP - Large at top (mobile) */}
           {isMobile ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-              <Star size={16} color="#feca57" />
-              <div style={{ textAlign: "center", color: "#feca57", fontSize: "0.75rem", fontWeight: "bold" }}>
-                {fps} / {score}
-              </div>
+              <Cross
+                size={32}
+                color={playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"}
+              />
+              <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
+                {playerHp}
+              </span>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: "1.5rem" }}>
-              <div>
-                <strong>FPS:</strong> <span style={{ color: "#feca57" }}>{fps}</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Star size={20} color="#feca57" />
-                <span>
-                  <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Cross size={20} color={playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b"} />
+              <span>
+                <strong>HP:</strong>{" "}
+                <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
+                  {playerHp}
                 </span>
+              </span>
+            </div>
+          )}
+
+          {/* Score & Planes - Combined in mobile, same row */}
+          {isMobile && (
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", width: "100%" }}>
+              {/* Score - 50% width */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem", width: "50%" }}>
+                <Star size={16} color="#feca57" />
+                <span style={{ fontSize: "0.65rem", color: "#888" }}>{score}</span>
+              </div>
+              {/* Planes - 50% width */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem", width: "50%" }}>
+                <Plane size={16} color="#feca57" />
+                <span style={{ fontSize: "0.65rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
               </div>
             </div>
           )}
 
-          {/* Planes Killed & HP - Combined in mobile */}
-          {isMobile ? (
-            <div className="planes-hp-row" style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "1rem", width: "100%" }}>
-              {/* Planes */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-                <Plane size={16} color="#feca57" />
-                <span style={{ fontSize: "0.65rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
-              </div>
-              {/* HP */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-                <Cross size={16} color="#feca57" />
-                <span style={{ fontSize: "0.7rem", color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
-                  {playerHp}
-                </span>
-              </div>
+          {/* Planes Killed - Desktop only */}
+          {!isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Plane size={20} color="#feca57" />
+              <span>
+                <strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
+              </span>
             </div>
-          ) : (
-            <>
-              {/* Planes Killed */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Plane size={20} color="#feca57" />
-                <span>
-                  <strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
-                </span>
-              </div>
+          )}
 
-              {/* HP */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <Cross size={20} color="#feca57" />
-                <span>
-                  <strong>HP:</strong>{" "}
-                  <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
-                    {playerHp}
-                  </span>
-                </span>
-              </div>
-            </>
+          {/* Score - Desktop only */}
+          {!isMobile && (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Star size={20} color="#feca57" />
+              <span>
+                <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+              </span>
+            </div>
           )}
 
           {/* Hand Detection Status */}
           {isMobile ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-              <Hand
-                size={22}
-                fill={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "none")}
-                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#feca57")}
-                strokeWidth={2}
+              <img
+                src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
+                alt="hand status"
+                style={{
+                  width: "22px",
+                  height: "22px",
+                  filter: `brightness(0) saturate(100%) ${
+                    isFistDetected ? "invert(47%) sepia(97%) saturate(1789%) hue-rotate(329deg) brightness(102%) contrast(101%)" :
+                    handsDetected.right ? "invert(85%) sepia(34%) saturate(1625%) hue-rotate(69deg) brightness(99%) contrast(103%)" :
+                    "invert(87%) sepia(42%) saturate(507%) hue-rotate(357deg) brightness(107%) contrast(94%)"
+                  }`
+                }}
               />
               <span style={{ fontSize: "0.65rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
                 {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
@@ -2322,11 +2327,18 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Hand
-                size={24}
-                fill={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "none")}
-                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#feca57")}
-                strokeWidth={2}
+              <img
+                src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
+                alt="hand status"
+                style={{
+                  width: "24px",
+                  height: "24px",
+                  filter: `brightness(0) saturate(100%) ${
+                    isFistDetected ? "invert(47%) sepia(97%) saturate(1789%) hue-rotate(329deg) brightness(102%) contrast(101%)" :
+                    handsDetected.right ? "invert(85%) sepia(34%) saturate(1625%) hue-rotate(69deg) brightness(99%) contrast(103%)" :
+                    "invert(87%) sepia(42%) saturate(507%) hue-rotate(357deg) brightness(107%) contrast(94%)"
+                  }`
+                }}
               />
               <span style={{ fontSize: "0.75rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
                 {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
@@ -2363,6 +2375,23 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               {isMuted ? "MUTED" : "ON"}
             </span>
           </button>
+          )}
+
+          {/* FPS Counter - Floating bottom right (mobile only) */}
+          {isMobile && (
+            <div style={{
+              position: "fixed",
+              bottom: "1rem",
+              right: "0.5rem",
+              fontSize: "0.65rem",
+              color: "#feca57",
+              fontWeight: "bold",
+              fontFamily: "var(--font-heading)",
+              pointerEvents: "none",
+              zIndex: 101,
+            }}>
+              {fps} FPS
+            </div>
           )}
         </div>
       )}
