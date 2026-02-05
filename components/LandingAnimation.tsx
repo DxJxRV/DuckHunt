@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 interface LandingAnimationProps {
   activeSection?: number;
@@ -30,8 +31,8 @@ export default function LandingAnimation({ activeSection = 0 }: LandingAnimation
     // Load plane sprites
     const sprite1 = new Image();
     const sprite2 = new Image();
-    sprite1.src = "/sprites/plane-1.png";
-    sprite2.src = "/sprites/plane-2.png";
+    sprite1.src = withBasePath("/sprites/plane-1.png");
+    sprite2.src = withBasePath("/sprites/plane-2.png");
 
     sprite1.onload = () => { planeSprite1Ref.current = sprite1; };
     sprite2.onload = () => { planeSprite2Ref.current = sprite2; };

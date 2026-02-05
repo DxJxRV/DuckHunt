@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Home, Pause, Play, Maximize, Minimize, Smartphone, Undo, Redo } from "lucide-react";
 import { useState, useEffect } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 // Import HandTracker dynamically with SSR disabled
 const HandTracker = dynamic(() => import("@/components/HandTracker"), {
@@ -267,7 +268,7 @@ export default function TrackingPage() {
                   1. PRESIONA SHARE
                 </div>
                 <img
-                  src="/images/share.jpeg"
+                  src={withBasePath("/images/share.jpeg")}
                   alt="Share button"
                   style={{
                     width: "100%",
@@ -303,7 +304,7 @@ export default function TrackingPage() {
                   2. AGREGAR A INICIO
                 </div>
                 <img
-                  src="/images/agregar-al-inicio.jpeg"
+                  src={withBasePath("/images/agregar-al-inicio.jpeg")}
                   alt="Add to home screen"
                   style={{
                     width: "100%",

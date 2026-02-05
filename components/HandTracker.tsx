@@ -8,6 +8,7 @@ import {
   FaceDetector,
 } from "@mediapipe/tasks-vision";
 import { Volume2, VolumeX, Pause, Play, Hand, Smartphone, Undo, Redo, Cross, Plane, Star, RotateCcw } from "lucide-react";
+import { withBasePath } from "@/lib/basePath";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -353,14 +354,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       const shield3 = new Image();
       const shield4 = new Image();
 
-      img1.src = "/sprites/plane-1.png";
-      img2.src = "/sprites/plane-2.png";
-      factory1.src = "/sprites/factory-1.png";
-      factory2.src = "/sprites/factory-2.png";
-      shield1.src = "/sprites/shield-1.png";
-      shield2.src = "/sprites/shield-2.png";
-      shield3.src = "/sprites/shield-3.png";
-      shield4.src = "/sprites/shield-4.png";
+      img1.src = withBasePath("/sprites/plane-1.png");
+      img2.src = withBasePath("/sprites/plane-2.png");
+      factory1.src = withBasePath("/sprites/factory-1.png");
+      factory2.src = withBasePath("/sprites/factory-2.png");
+      shield1.src = withBasePath("/sprites/shield-1.png");
+      shield2.src = withBasePath("/sprites/shield-2.png");
+      shield3.src = withBasePath("/sprites/shield-3.png");
+      shield4.src = withBasePath("/sprites/shield-4.png");
 
       await Promise.all([
         new Promise((resolve) => { img1.onload = resolve; img1.onerror = resolve; }),

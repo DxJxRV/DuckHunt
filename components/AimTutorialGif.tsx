@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 export default function AimTutorialGif() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,7 +27,7 @@ export default function AimTutorialGif() {
     // Load hand sprite
     const loadSprite = async () => {
       const img = new Image();
-      img.src = "/sprites/hand-point.png";
+      img.src = withBasePath("/sprites/hand-point.png");
       await new Promise<void>((resolve, reject) => {
         img.onload = () => {
           handSpriteRef.current = img;

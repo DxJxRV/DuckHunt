@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 export default function BlackHoleTutorialGif() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,10 +44,10 @@ export default function BlackHoleTutorialGif() {
       };
 
       const [hPoint, hOk, p1, p2] = await Promise.all([
-        loadImage("/sprites/hand-point.png"),
-        loadImage("/sprites/hand-ok.png"),
-        loadImage("/sprites/plane-1.png"),
-        loadImage("/sprites/plane-2.png"),
+        loadImage(withBasePath("/sprites/hand-point.png")),
+        loadImage(withBasePath("/sprites/hand-ok.png")),
+        loadImage(withBasePath("/sprites/plane-1.png")),
+        loadImage(withBasePath("/sprites/plane-2.png")),
       ]);
 
       handPointRef.current = hPoint;

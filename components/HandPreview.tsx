@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 interface HandPreviewProps {
   targetAngle: number;
@@ -34,9 +35,9 @@ export default function HandPreview({ targetAngle, isOK }: HandPreviewProps) {
     const pinching = new Image();
     const ok = new Image();
 
-    point.src = "/sprites/hand-point.png";
-    pinching.src = "/sprites/hand-pinching.png";
-    ok.src = "/sprites/hand-ok.png";
+    point.src = withBasePath("/sprites/hand-point.png");
+    pinching.src = withBasePath("/sprites/hand-pinching.png");
+    ok.src = withBasePath("/sprites/hand-ok.png");
 
     point.onload = () => { handPointRef.current = point; };
     pinching.onload = () => { handPinchingRef.current = pinching; };

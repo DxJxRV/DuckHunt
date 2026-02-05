@@ -231,6 +231,63 @@ MIT
 - Hand tracking powered by [MediaPipe](https://developers.google.com/mediapipe)
 - Built with [Next.js](https://nextjs.org)
 
+## Deployment (Static Export with Base Path)
+
+### Configuration
+
+This app is configured to deploy under a base path (e.g., `https://dxjx.dev/voidhunter/`).
+
+**Environment variable:**
+```bash
+NEXT_PUBLIC_BASE_PATH=/voidhunter
+```
+
+### Build for Production
+
+```bash
+# 1. Set environment variable (or use .env.local)
+export NEXT_PUBLIC_BASE_PATH=/voidhunter
+
+# 2. Build static export
+npm run build
+
+# 3. Output will be in ./out directory
+```
+
+### Local Testing with Base Path
+
+```bash
+# 1. Start dev server with base path
+npm run dev
+
+# 2. Open in browser
+http://localhost:3000/voidhunter/
+```
+
+### Deployment Verification
+
+- [ ] PWA installs correctly with scope `/voidhunter/`
+- [ ] All assets load (sprites, icons, fonts)
+- [ ] Service worker registers at `/voidhunter/sw.js`
+- [ ] MediaPipe WASM files load from CDN
+- [ ] Navigation works (landing → /tracking)
+- [ ] All canvas animations render correctly
+
+### NGINX Configuration (Optional Reference)
+
+```nginx
+location /voidhunter/ {
+    alias /var/www/voidhunter/out/;
+    try_files $uri $uri/ /voidhunter/index.html;
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
 ---
 
 **Desarrollado como MVP para proyecto Duck Hunt con hand tracking**

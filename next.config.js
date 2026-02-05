@@ -1,3 +1,5 @@
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 const withPWA = require("@ducanh2912/next-pwa").default({
   dest: "public",
   cacheOnFrontEndNav: true,
@@ -5,6 +7,7 @@ const withPWA = require("@ducanh2912/next-pwa").default({
   reloadOnOnline: true,
   swcMinify: true,
   disable: process.env.NODE_ENV === "development",
+  scope: basePath ? `${basePath}/` : "/",
   fallbacks: {
     document: "/",
   },
@@ -108,6 +111,13 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  basePath: basePath,
+  // Note: assetPrefix not needed for static export with basePath
+  output: "export",
+  trailingSlash: true,
+  images: {
+    unoptimized: true, // Required for static export
+  },
 };
 
 module.exports = withPWA(nextConfig);

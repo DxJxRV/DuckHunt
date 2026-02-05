@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
+import { withBasePath } from "@/lib/basePath";
 
 export default function ShieldAngelGif() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -78,12 +79,12 @@ export default function ShieldAngelGif() {
     // Load sprites in parallel
     const loadSprites = async () => {
       const [a1, a2, a3, a4, p1, p2] = await Promise.all([
-        loadImage("/sprites/shield-1.png"),
-        loadImage("/sprites/shield-2.png"),
-        loadImage("/sprites/shield-3.png"),
-        loadImage("/sprites/shield-4.png"),
-        loadImage("/sprites/plane-1.png"),
-        loadImage("/sprites/plane-2.png"),
+        loadImage(withBasePath("/sprites/shield-1.png")),
+        loadImage(withBasePath("/sprites/shield-2.png")),
+        loadImage(withBasePath("/sprites/shield-3.png")),
+        loadImage(withBasePath("/sprites/shield-4.png")),
+        loadImage(withBasePath("/sprites/plane-1.png")),
+        loadImage(withBasePath("/sprites/plane-2.png")),
       ]);
 
       angelSprite1Ref.current = a1;
