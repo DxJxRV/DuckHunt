@@ -83,9 +83,9 @@ export const landingSections: Section[] = [
     },
     content: {
       type: "tutorial",
-      title: "🎯 Mueve tu mano para apuntar",
-      description: "Tu mano controla la retícula roja. Muévela hacia donde quieras invocar el agujero negro.",
-      tutorialGif: "/gifs/aim-tutorial.gif",
+      title: "🎯 Usa tu mano para apuntar",
+      description: "Tu mano controla la retícula roja. Apuntala hacia donde quieras invocar el agujero negro.",
+      tutorialGif: "component:AimTutorialGif",
     },
   },
 

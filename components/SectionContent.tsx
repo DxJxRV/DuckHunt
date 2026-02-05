@@ -6,6 +6,10 @@ const ShieldAngelGif = dynamic(() => import("@/components/ShieldAngelGif"), {
   ssr: false,
 });
 
+const AimTutorialGif = dynamic(() => import("@/components/AimTutorialGif"), {
+  ssr: false,
+});
+
 interface SectionContentProps {
   config: Section["content"];
   handPosition: "bottom-right" | "bottom-left";
@@ -227,6 +231,10 @@ export default function SectionContent({
                     <div style={{ width: "100%", aspectRatio: "16/9", maxHeight: "400px" }}>
                       <ShieldAngelGif />
                     </div>
+                  ) : config.tutorialGif === "component:AimTutorialGif" ? (
+                    <div style={{ width: "100%", aspectRatio: "16/9", maxHeight: "400px" }}>
+                      <AimTutorialGif />
+                    </div>
                   ) : null
                 ) : (
                   <div className="tutorial-gif-placeholder">
@@ -266,6 +274,10 @@ export default function SectionContent({
                 config.tutorialGif === "component:ShieldAngelGif" ? (
                   <div style={{ width: "100%", aspectRatio: "16/9" }}>
                     <ShieldAngelGif />
+                  </div>
+                ) : config.tutorialGif === "component:AimTutorialGif" ? (
+                  <div style={{ width: "100%", aspectRatio: "16/9" }}>
+                    <AimTutorialGif />
                   </div>
                 ) : null
               ) : (
