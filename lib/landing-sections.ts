@@ -105,7 +105,7 @@ export const landingSections: Section[] = [
       type: "tutorial",
       title: "Haz OK para invocar el vacío",
       description: "Haz el gesto OK con tu mano. Se fija un agujero negro en tu retícula que succiona y destruye aviones cercanos por gravedad.",
-      tutorialGif: "/gifs/ok-gesture.gif",
+      tutorialGif: "component:BlackHoleTutorialGif",
     },
   },
 ];

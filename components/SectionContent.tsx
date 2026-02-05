@@ -10,6 +10,10 @@ const AimTutorialGif = dynamic(() => import("@/components/AimTutorialGif"), {
   ssr: false,
 });
 
+const BlackHoleTutorialGif = dynamic(() => import("@/components/BlackHoleTutorialGif"), {
+  ssr: false,
+});
+
 interface SectionContentProps {
   config: Section["content"];
   handPosition: "bottom-right" | "bottom-left";
@@ -235,6 +239,10 @@ export default function SectionContent({
                     <div style={{ width: "100%", aspectRatio: "16/9", maxHeight: "400px" }}>
                       <AimTutorialGif />
                     </div>
+                  ) : config.tutorialGif === "component:BlackHoleTutorialGif" ? (
+                    <div style={{ width: "100%", aspectRatio: "16/9", maxHeight: "400px" }}>
+                      <BlackHoleTutorialGif />
+                    </div>
                   ) : null
                 ) : (
                   <div className="tutorial-gif-placeholder">
@@ -278,6 +286,10 @@ export default function SectionContent({
                 ) : config.tutorialGif === "component:AimTutorialGif" ? (
                   <div style={{ width: "100%", aspectRatio: "16/9" }}>
                     <AimTutorialGif />
+                  </div>
+                ) : config.tutorialGif === "component:BlackHoleTutorialGif" ? (
+                  <div style={{ width: "100%", aspectRatio: "16/9" }}>
+                    <BlackHoleTutorialGif />
                   </div>
                 ) : null
               ) : (
