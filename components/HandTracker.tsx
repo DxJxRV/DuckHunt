@@ -105,6 +105,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [showIOSInstructions, setShowIOSInstructions] = useState<boolean>(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -733,6 +734,16 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   }
 
   async function toggleFullscreen() {
+    // Detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+    if (isIOS) {
+      // Show instructions modal for iOS
+      setShowIOSInstructions(true);
+      return;
+    }
+
+    // Standard fullscreen for other devices
     try {
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen();
@@ -742,7 +753,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         setIsFullscreen(false);
       }
     } catch (e) {
-      console.log("Could not toggle fullscreen");
+      console.log("Fullscreen not available");
     }
   }
 
@@ -2521,7 +2532,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           {/* Dark overlay background (60% opacity) */}
           <div
             style={{
-              position: "absolute",
+              position: "fixed",
               top: 0,
               left: 0,
               width: "100%",
@@ -2531,26 +2542,31 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               pointerEvents: "none",
             }}
           />
-          {/* Content */}
+          {/* Modal container */}
           <div
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              padding: "2rem 1.5rem",
+              background: "rgba(10, 10, 10, 0.95)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              zIndex: 2000,
+              maxWidth: "90%",
+              width: "min(350px, 90vw)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "2rem",
-              zIndex: 2000,
+              gap: "1.5rem",
             }}
           >
             <h2
               style={{
                 fontFamily: "var(--font-heading)",
-                fontSize: "clamp(2rem, 8vw, 4rem)",
+                fontSize: "clamp(1.2rem, 6vw, 2rem)",
                 fontWeight: 400,
                 background: "linear-gradient(135deg, #feca57, #ff9f43)",
                 WebkitBackgroundClip: "text",
@@ -2559,15 +2575,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
                 margin: 0,
                 textAlign: "center",
                 pointerEvents: "none",
-                padding: "0 1rem",
               }}
             >
               Gira tu dispositivo
             </h2>
-            {/* Icon container with glassmorphism */}
+            {/* Icon container */}
             <div
               style={{
-                padding: "2rem 3rem",
+                padding: "1.5rem",
                 background: "rgba(255, 255, 255, 0.05)",
                 border: "1px solid rgba(255, 255, 255, 0.1)",
                 borderRadius: "20px",
@@ -2575,21 +2590,21 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                gap: "2rem",
+                gap: "1.5rem",
                 pointerEvents: "none",
               }}
             >
               <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
                 <div style={{ transform: "rotate(-90deg)" }}>
-                  <Undo size={40} strokeWidth={2.5} color="#feca57" />
+                  <Undo size={30} strokeWidth={2.5} color="#feca57" />
                 </div>
               </div>
               <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
-                <Smartphone size={80} strokeWidth={1.5} color="#feca57" />
+                <Smartphone size={60} strokeWidth={1.5} color="#feca57" />
               </div>
               <div style={{ animation: "rotate-phone 2s ease-in-out infinite" }}>
-                <div style={{ transform: "rotate(270deg) scaleY(-1)" }}>
-                  <Redo size={40} strokeWidth={2.5} color="#feca57" />
+                <div style={{ transform: "rotate(90deg) scaleY(-1)" }}>
+                  <Redo size={30} strokeWidth={2.5} color="#feca57" />
                 </div>
               </div>
             </div>
@@ -2730,6 +2745,92 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
               }}
             >
               Volver a jugar
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* iOS PWA Instructions Modal */}
+      {showIOSInstructions && (
+        <>
+          {/* Dark overlay */}
+          <div
+            onClick={() => setShowIOSInstructions(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              zIndex: 2000,
+            }}
+          />
+          {/* Modal content */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              padding: "2rem",
+              background: "rgba(10, 10, 10, 0.95)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              zIndex: 2001,
+              maxWidth: "90%",
+              width: "400px",
+            }}
+          >
+            <h3 style={{
+              fontFamily: "var(--font-heading)",
+              fontSize: "1.2rem",
+              color: "#ff6b6b",
+              marginBottom: "1rem",
+              textAlign: "center",
+            }}>
+              iOS no soporta fullscreen 😔
+            </h3>
+            <p style={{
+              fontFamily: "var(--font-body)",
+              fontSize: "0.9rem",
+              color: "#feca57",
+              marginBottom: "1.5rem",
+              lineHeight: "1.6",
+            }}>
+              Para jugar en pantalla completa:
+            </p>
+            <ol style={{
+              fontFamily: "var(--font-body)",
+              fontSize: "0.85rem",
+              color: "#ffffff",
+              lineHeight: "1.8",
+              paddingLeft: "1.5rem",
+              marginBottom: "1.5rem",
+            }}>
+              <li>Presiona el botón <strong style={{ color: "#feca57" }}>Compartir</strong> (📤) en la barra inferior de Safari</li>
+              <li>Selecciona <strong style={{ color: "#feca57" }}>"Agregar a pantalla de inicio"</strong></li>
+              <li>Abre VoidHunter desde tu pantalla de inicio</li>
+              <li>¡Juega sin barras! 🎮</li>
+            </ol>
+            <button
+              onClick={() => setShowIOSInstructions(false)}
+              style={{
+                width: "100%",
+                padding: "0.8rem",
+                fontFamily: "var(--font-heading)",
+                fontSize: "0.75rem",
+                letterSpacing: "0.05em",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              Entendido
             </button>
           </div>
         </>
