@@ -44,8 +44,9 @@ export default function TrackingPage() {
         className="sidebar"
         style={{
           width: "80px",
-          backgroundColor: "#1a1a1a",
-          borderRight: "2px solid #333",
+          backdropFilter: "blur(20px) saturate(180%)",
+          background: "rgba(10, 10, 10, 0.7)",
+          borderRight: "1px solid rgba(255, 255, 255, 0.1)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -53,6 +54,37 @@ export default function TrackingPage() {
           gap: "2rem",
         }}
       >
+        {/* Pause/Resume Button */}
+        <button
+          onClick={togglePause}
+          style={{
+            width: "50px",
+            height: "50px",
+            borderRadius: "20px",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(20px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#feca57",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "scale(1.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "scale(1)";
+          }}
+          title={isPaused ? "Resume Game" : "Pause Game"}
+        >
+          {isPaused ? <Play size={24} /> : <Pause size={24} />}
+        </button>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
         {/* Logo/Title - Vertical - Clickable */}
         <Link
           href="/"
@@ -66,7 +98,6 @@ export default function TrackingPage() {
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
             letterSpacing: "0.1em",
-            marginBottom: "1rem",
             textDecoration: "none",
             transition: "all 0.3s ease",
             cursor: "pointer",
@@ -79,46 +110,8 @@ export default function TrackingPage() {
           }}
           title="Back to Home"
         >
-          VOID HUNTER
+          VoidHunter.com
         </Link>
-
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-
-        {/* Pause/Resume Button */}
-        <button
-          onClick={togglePause}
-          style={{
-            width: "50px",
-            height: "50px",
-            borderRadius: "8px",
-            backgroundColor: isPaused
-              ? "rgba(254, 202, 87, 0.2)"
-              : "rgba(255, 107, 107, 0.1)",
-            border: isPaused ? "2px solid #feca57" : "2px solid #ff6b6b",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: isPaused ? "#feca57" : "#ff6b6b",
-            cursor: "pointer",
-            transition: "all 0.3s ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = isPaused
-              ? "rgba(254, 202, 87, 0.3)"
-              : "rgba(255, 107, 107, 0.3)";
-            e.currentTarget.style.transform = "scale(1.1)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = isPaused
-              ? "rgba(254, 202, 87, 0.2)"
-              : "rgba(255, 107, 107, 0.1)";
-            e.currentTarget.style.transform = "scale(1)";
-          }}
-          title={isPaused ? "Resume Game" : "Pause Game"}
-        >
-          {isPaused ? <Play size={24} /> : <Pause size={24} />}
-        </button>
       </aside>
 
       {/* Main Content */}

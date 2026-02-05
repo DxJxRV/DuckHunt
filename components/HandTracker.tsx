@@ -7,7 +7,7 @@ import {
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
-import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize, Smartphone, Undo, Redo } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Hand, Maximize, Minimize, Smartphone, Undo, Redo, Cross, Plane, Star } from "lucide-react";
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -2165,9 +2165,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
                   alignItems: "center",
                   gap: "1.5rem",
                   padding: "1.5rem 0.5rem",
-                  backgroundColor: "rgba(0, 0, 0, 0.85)",
-                  borderLeft: "2px solid #333",
-                  fontFamily: "monospace",
+                  backdropFilter: "blur(20px) saturate(180%)",
+                  background: "rgba(10, 10, 10, 0.7)",
+                  borderLeft: "1px solid rgba(255, 255, 255, 0.1)",
+                  fontFamily: "var(--font-body)",
                   fontSize: "0.7rem",
                   zIndex: 100,
                   overflowY: "auto",
@@ -2176,9 +2177,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
                   display: "flex",
                   gap: "2rem",
                   padding: "1rem 2rem",
-                  backgroundColor: "rgba(0, 0, 0, 0.85)",
+                  backdropFilter: "blur(20px) saturate(180%)",
+                  background: "rgba(10, 10, 10, 0.7)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
                   borderRadius: "8px 8px 0 0",
-                  fontFamily: "monospace",
+                  fontFamily: "var(--font-body)",
                   fontSize: "0.875rem",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -2190,16 +2193,17 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             <button
               onClick={toggleFullscreen}
               style={{
-                background: "transparent",
-                border: "2px solid #888",
-                borderRadius: "6px",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
                 padding: "0.6rem",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 transition: "all 0.2s ease",
-                color: isFullscreen ? "#feca57" : "#888",
+                color: "#feca57",
                 minWidth: "48px",
                 minHeight: "48px",
                 width: "100%",
@@ -2210,18 +2214,56 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             </button>
           )}
 
+          {/* Mute Button - at top for mobile */}
+          {isMobile && (
+            <button
+              onClick={toggleMute}
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                padding: "0.6rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s ease",
+                color: "#feca57",
+                minWidth: "48px",
+                minHeight: "48px",
+                width: "100%",
+                maxWidth: "60px",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+            >
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+            </button>
+          )}
+
           {/* FPS & Score - Combined in mobile */}
           {isMobile ? (
-            <div style={{ textAlign: "center", color: "#feca57", fontSize: "0.75rem", fontWeight: "bold" }}>
-              {fps} / {score}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
+              <Star size={16} color="#feca57" />
+              <div style={{ textAlign: "center", color: "#feca57", fontSize: "0.75rem", fontWeight: "bold" }}>
+                {fps} / {score}
+              </div>
             </div>
           ) : (
             <div style={{ display: "flex", gap: "1.5rem" }}>
               <div>
                 <strong>FPS:</strong> <span style={{ color: "#feca57" }}>{fps}</span>
               </div>
-              <div>
-                <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Star size={20} color="#feca57" />
+                <span>
+                  <strong>Score:</strong> <span style={{ color: "#feca57" }}>{score}</span>
+                </span>
               </div>
             </div>
           )}
@@ -2231,12 +2273,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             <div className="planes-hp-row" style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: "1rem", width: "100%" }}>
               {/* Planes */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-                <span style={{ fontSize: "1rem" }}>✈️</span>
+                <Plane size={16} color="#feca57" />
                 <span style={{ fontSize: "0.65rem", color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
               </div>
               {/* HP */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
-                <span style={{ fontSize: "1rem" }}>❤️</span>
+                <Cross size={16} color="#feca57" />
                 <span style={{ fontSize: "0.7rem", color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
                   {playerHp}
                 </span>
@@ -2246,7 +2288,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             <>
               {/* Planes Killed */}
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "1.2rem" }}>✈️</span>
+                <Plane size={20} color="#feca57" />
                 <span>
                   <strong>Killed:</strong> <span style={{ color: "#888" }}>{planesKilled}/{TOTAL_PLANES}</span>
                 </span>
@@ -2254,7 +2296,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
               {/* HP */}
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span style={{ fontSize: "1.2rem" }}>❤️</span>
+                <Cross size={20} color="#feca57" />
                 <span>
                   <strong>HP:</strong>{" "}
                   <span style={{ color: playerHp > 50 ? "#00ff88" : playerHp > 25 ? "#feca57" : "#ff6b6b" }}>
@@ -2265,95 +2307,63 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             </>
           )}
 
-          {/* Hands Detection */}
+          {/* Hand Detection Status */}
           {isMobile ? (
-            <div className="hands-row" style={{ display: "flex", flexDirection: "row", gap: "0.8rem", alignItems: "center", justifyContent: "center", width: "100%" }}>
-              {/* Right hand */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.2rem" }}>
               <Hand
                 size={22}
-                fill={handsDetected.right ? "#00ff88" : "none"}
-                stroke={handsDetected.right ? "#00ff88" : "#ffffff"}
+                fill={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "none")}
+                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#feca57")}
                 strokeWidth={2}
               />
-              {/* Left hand */}
-              <Hand
-                size={22}
-                fill={isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "none")}
-                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#ffffff")}
-                strokeWidth={2}
-                style={{ transform: "scaleX(-1)" }}
-              />
+              <span style={{ fontSize: "0.65rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
+                {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
+              </span>
             </div>
           ) : (
-            <div style={{ display: "flex", gap: "1rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                <span style={{ fontSize: "1rem" }}>🤚</span>
-                <span style={{ color: handsDetected.right ? "#00ff88" : "#666", fontSize: "0.75rem" }}>
-                  {handsDetected.right ? "AIM" : "✗"}
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                <span style={{ fontSize: "1rem", transform: "scaleX(-1)", display: "inline-block" }}>🤚</span>
-                <span style={{
-                  color: isFistDetected ? "#ff6b6b" : (handsDetected.left ? "#00ff88" : "#666"),
-                  fontSize: "0.75rem"
-                }}>
-                  {handsDetected.left ? (isFistDetected ? "FIRE" : "RDY") : "✗"}
-                </span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Hand
+                size={24}
+                fill={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "none")}
+                stroke={isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#feca57")}
+                strokeWidth={2}
+              />
+              <span style={{ fontSize: "0.75rem", color: isFistDetected ? "#ff6b6b" : (handsDetected.right ? "#00ff88" : "#888") }}>
+                {handsDetected.right ? (isFistDetected ? "FIRE" : "AIM") : "✗"}
+              </span>
             </div>
           )}
 
-          {/* Mute Button */}
-          <button
-            onClick={toggleMute}
-            style={
-              isMobile
-                ? {
-                    background: "transparent",
-                    border: "2px solid #888",
-                    borderRadius: "6px",
-                    padding: "0.6rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.2s ease",
-                    color: isMuted ? "#888" : "#00ff88",
-                    minWidth: "48px",
-                    minHeight: "48px",
-                    width: "100%",
-                    maxWidth: "60px",
-                  }
-                : {
-                    background: "transparent",
-                    border: "2px solid #888",
-                    borderRadius: "6px",
-                    padding: "0.4rem 0.8rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.3rem",
-                    transition: "all 0.2s ease",
-                    color: isMuted ? "#888" : "#00ff88",
-                  }
-            }
+          {/* Mute Button - Desktop only at bottom */}
+          {!isMobile && (
+            <button
+              onClick={toggleMute}
+              style={{
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "20px",
+                backdropFilter: "blur(20px)",
+                padding: "0.4rem 0.8rem",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                transition: "all 0.2s ease",
+                color: "#feca57",
+              }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#ffffff";
               e.currentTarget.style.transform = "scale(1.05)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "#888";
               e.currentTarget.style.transform = "scale(1)";
             }}
           >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            {!isMobile && (
-              <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
-                {isMuted ? "MUTED" : "ON"}
-              </span>
-            )}
+            <span style={{ fontSize: "0.75rem", fontWeight: "bold" }}>
+              {isMuted ? "MUTED" : "ON"}
+            </span>
           </button>
+          )}
         </div>
       )}
 
