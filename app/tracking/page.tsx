@@ -14,7 +14,7 @@ const HandTracker = dynamic(() => import("@/components/HandTracker"), {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         color: "#feca57",
       }}
     >
@@ -34,7 +34,7 @@ export default function TrackingPage() {
     <div
       style={{
         display: "flex",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         backgroundColor: "#0a0a0a",
       }}
       className="tracking-page"
@@ -197,12 +197,12 @@ export default function TrackingPage() {
         /* Fullscreen support */
         @media (orientation: landscape) {
           .tracking-page {
-            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
           }
 
           main {
-            height: 100vh;
+            height: 100dvh;
           }
         }
       `}</style>

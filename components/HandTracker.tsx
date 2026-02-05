@@ -2169,7 +2169,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
                   top: 0,
                   bottom: 0,
                   width: "80px",
-                  height: "100vh",
+                  height: "100dvh",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "flex-start",
@@ -2414,13 +2414,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             ? {
                 position: "relative",
                 width: "calc(100% - 80px)",
-                height: "100vh",
+                height: "100dvh",
                 marginRight: "80px",
               }
             : {
                 position: "relative",
                 width: "100%",
-                height: "100vh",
+                height: "100dvh",
               }
         }
       >
@@ -2942,7 +2942,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             top: 0 !important;
             bottom: 0 !important;
             width: 80px !important;
-            height: 100vh !important;
+            height: 100dvh !important;
             max-width: 80px !important;
             flex-direction: column !important;
             justify-content: flex-start !important;
