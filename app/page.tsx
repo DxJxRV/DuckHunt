@@ -87,7 +87,7 @@ export default function Home() {
   return (
     <div
       style={{
-        height: "100vh",
+        height: "100dvh",
         overflowY: "scroll",
         overflowX: "hidden",
         scrollSnapType: "y mandatory",
@@ -163,7 +163,7 @@ export default function Home() {
           data-section-index={index}
           className="fullscreen-section active"
           style={{
-            height: "100vh",
+            height: "100dvh",
             scrollSnapAlign: "start",
             position: "relative",
             transition: "opacity 0.6s ease-out, transform 0.6s ease-out",
@@ -204,16 +204,14 @@ export default function Home() {
             }
           />
 
-          {/* Hand preview box - floating (hero uses large, tutorial uses compact) */}
-          {(section.content.type === "hero" || section.content.type === "tutorial") && (
-            <div className={section.content.type === "tutorial" ? "tutorial-floating-hand" : ""}>
-              <HandPreviewBox
-                position={section.handPosition}
-                targetAngle={handAngle}
-                isOK={isOK}
-                compact={section.content.type === "tutorial"}
-              />
-            </div>
+          {/* Hand preview box - floating (solo en Hero) */}
+          {section.content.type === "hero" && (
+            <HandPreviewBox
+              position={section.handPosition}
+              targetAngle={handAngle}
+              isOK={isOK}
+              compact={false}
+            />
           )}
         </section>
       ))}

@@ -26,7 +26,7 @@ export default function SectionContent({
           maxWidth: "1400px",
           margin: "0 auto",
           padding: "8rem 2rem 2rem", // Top padding for navbar + extra space
-          minHeight: "100vh",
+          minHeight: "100dvh",
           display: "flex",
           alignItems: "center",
           position: "relative",
@@ -158,9 +158,9 @@ export default function SectionContent({
           /* Mobile responsive */
           @media (max-width: 768px) {
             .hero-container {
-              padding: 7rem 1.5rem 7rem !important;
-              min-height: 100vh !important;
-              justify-content: flex-start !important;
+              padding: 0 1.5rem 8rem !important;
+              min-height: 100dvh !important;
+              justify-content: center !important;
             }
 
             .hero-content {
@@ -170,7 +170,7 @@ export default function SectionContent({
 
             .hero-title {
               font-size: 2rem;
-              margin-bottom: 1rem !important;
+              margin-bottom: 0.6rem !important;
             }
 
             .hero-title-gradient {
@@ -178,12 +178,12 @@ export default function SectionContent({
             }
 
             .hero-description {
-              font-size: 1.1rem;
-              margin-bottom: 1.5rem !important;
+              font-size: 1rem;
+              margin-bottom: 1rem !important;
             }
 
             .hero-features {
-              margin-bottom: 1.5rem !important;
+              margin-bottom: 1rem !important;
             }
 
             .hero-cta {
@@ -194,6 +194,10 @@ export default function SectionContent({
             .feature-chip {
               font-size: 0.5rem;
               padding: 0.5rem 1rem;
+            }
+
+            .hero-meta {
+              font-size: 0.75rem !important;
             }
           }
         `}</style>
