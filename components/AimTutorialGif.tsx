@@ -63,10 +63,10 @@ export default function AimTutorialGif() {
     function drawCrosshair(x: number, y: number) {
       if (!ctx || !canvas) return;
 
-      const size = 20;
-      const gap = 10;
+      const size = 15; // 25% smaller (20 * 0.75)
+      const gap = 7.5; // 25% smaller (10 * 0.75)
 
-      ctx.strokeStyle = "#ff6b6b";
+      ctx.strokeStyle = "#feca57"; // Yellow color
       ctx.lineWidth = 3;
       ctx.lineCap = "round";
 
@@ -95,7 +95,7 @@ export default function AimTutorialGif() {
       ctx.stroke();
 
       // Center dot
-      ctx.fillStyle = "#ff6b6b";
+      ctx.fillStyle = "#feca57"; // Yellow color
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
       ctx.fill();
@@ -130,7 +130,7 @@ export default function AimTutorialGif() {
       }
 
       const elapsed = (now - animationStartTime) / 1000; // in seconds
-      const cycleTime = 7; // Total cycle: 7 seconds
+      const cycleTime = 8; // Total cycle: 8 seconds
 
       // Reset cycle
       if (elapsed >= cycleTime) {
@@ -164,14 +164,24 @@ export default function AimTutorialGif() {
         targetHandAngle = lerp(0, 45, progress); // from right to bottom-right
         targetCrosshairX = lerp(canvas.width - 50, canvas.width - 50, progress);
         targetCrosshairY = lerp(canvas.height / 2, canvas.height - 50, progress);
-      } else if (t < 6.5) {
-        // Phase 4: Point top-left (4.5-6.5s)
-        const progress = Math.min((t - 4.5) / 2, 1);
-        targetHandAngle = lerp(45, -135, progress); // from bottom-right to top-left
-        targetCrosshairX = lerp(canvas.width - 50, 50, progress);
-        targetCrosshairY = lerp(canvas.height - 50, 50, progress);
+      } else if (t < 7.5) {
+        // Phase 4-5: Hand rotates fast continuously (4.5-7.5s = 3 seconds)
+        const handProgress = Math.min((t - 4.5) / 3, 1);
+        targetHandAngle = lerp(45, -135, handProgress); // Rotate 180° uniformly in 3s
+
+        // Crosshair behavior during this phase
+        if (t < 5.5) {
+          // Crosshair paused at bottom-right (4.5-5.5s = 1 second)
+          targetCrosshairX = canvas.width - 50;
+          targetCrosshairY = canvas.height - 50;
+        } else {
+          // Crosshair moves to top-left (5.5-7.5s = 2 seconds)
+          const crosshairProgress = Math.min((t - 5.5) / 2, 1);
+          targetCrosshairX = lerp(canvas.width - 50, 50, crosshairProgress);
+          targetCrosshairY = lerp(canvas.height - 50, 50, crosshairProgress);
+        }
       } else {
-        // Phase 5: Pause at top-left (6.5-7s)
+        // Phase 6: Pause at top-left (7.5-8s)
         targetHandAngle = -135;
         targetCrosshairX = 50;
         targetCrosshairY = 50;
