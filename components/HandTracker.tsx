@@ -152,6 +152,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
   // Fire debounce
   const lastFireTimeRef = useRef<number>(0);
+
+  // Sprite scale factor (1.35 for mobile, 1.0 for desktop)
+  const spriteScaleRef = useRef<number>(1.0);
   const isFistClosedRef = useRef<boolean>(false);
   const isFistDetectedRef = useRef<boolean>(false);
 
@@ -318,6 +321,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       window.removeEventListener("resize", adjustCanvasOverlay);
     };
   }, [status]);
+
+  // Update sprite scale based on mobile state
+  useEffect(() => {
+    spriteScaleRef.current = isMobile ? 1.35 : 1.0;
+  }, [isMobile]);
 
   useEffect(() => {
     let mounted = true;
@@ -905,7 +913,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       y: factoryY,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      size: 84,
+      size: 84 * spriteScaleRef.current,
       color: colors[nextDuckIdRef.current % colors.length],
       alive: true,
       hp: 100,
@@ -1332,16 +1340,17 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     y: number
   ) {
     const time = performance.now() / 1000;
+    const scale = spriteScaleRef.current;
 
     // Draw large pulsing outer glow (see-through)
-    const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150);
+    const outerGlow = ctx.createRadialGradient(x, y, 0, x, y, 150 * scale);
     outerGlow.addColorStop(0, "rgba(138, 43, 226, 0.15)");
     outerGlow.addColorStop(0.5, "rgba(75, 0, 130, 0.08)");
     outerGlow.addColorStop(1, "rgba(138, 43, 226, 0)");
 
     ctx.fillStyle = outerGlow;
     ctx.beginPath();
-    ctx.arc(x, y, 150, 0, 2 * Math.PI);
+    ctx.arc(x, y, 150 * scale, 0, 2 * Math.PI);
     ctx.fill();
 
     // Draw spiraling particles (optimized: reduced from 60 to 30 for performance)
@@ -1352,13 +1361,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
       // Stagger distances more for uniform distribution
       const distanceOffset = (i * 2.3) % 140;
-      const distance = 140 - ((time * 80 + distanceOffset) % 140);
-      const spiralOffset = Math.sin(distance / 20 + i * 0.1) * 12;
+      const distance = (140 - ((time * 80 + distanceOffset) % 140)) * scale;
+      const spiralOffset = Math.sin(distance / (20 * scale) + i * 0.1) * 12 * scale;
 
       const px = x + Math.cos(angle) * (distance + spiralOffset);
       const py = y + Math.sin(angle) * (distance + spiralOffset);
-      const particleAlpha = (1 - (distance / 140)) * 0.6;
-      const particleSize = 1 + (1 - distance / 140) * 2; // Smaller particles
+      const particleAlpha = (1 - (distance / (140 * scale))) * 0.6;
+      const particleSize = (1 + (1 - distance / (140 * scale)) * 2) * scale; // Smaller particles
 
       ctx.beginPath();
       ctx.arc(px, py, particleSize, 0, 2 * Math.PI);
@@ -1415,8 +1424,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     x: number,
     y: number
   ) {
-    const size = 20;
-    const gap = 10;
+    const scale = spriteScaleRef.current;
+    const size = 20 * scale;
+    const gap = 10 * scale;
 
     ctx.strokeStyle = "#ff6b6b";
     ctx.lineWidth = 3;
@@ -1467,9 +1477,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             const dx = newX - shieldX;
             const dy = newY - shieldY;
             const distance = Math.sqrt(dx * dx + dy * dy);
+            const shieldRadius = 80 * spriteScaleRef.current;
 
-            if (distance < 80) {
-              // Hit player (shield radius = 80)
+            if (distance < shieldRadius) {
+              // Hit player (shield radius scaled)
               setPlayerHp((prev) => {
                 const newHp = Math.max(0, prev - 1);
                 if (newHp === 0) {
@@ -1502,16 +1513,17 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   }
 
   function drawBullets(ctx: CanvasRenderingContext2D) {
+    const scale = spriteScaleRef.current;
     bulletsRef.current.forEach((bullet) => {
       ctx.fillStyle = "#ff6b6b";
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 3.5, 0, 2 * Math.PI); // 30% smaller (5 * 0.7 = 3.5)
+      ctx.arc(bullet.x, bullet.y, 3.5 * scale, 0, 2 * Math.PI); // 30% smaller (5 * 0.7 = 3.5)
       ctx.fill();
 
       // Glow
       ctx.fillStyle = "rgba(255, 107, 107, 0.3)";
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 7, 0, 2 * Math.PI); // 30% smaller (10 * 0.7 = 7)
+      ctx.arc(bullet.x, bullet.y, 7 * scale, 0, 2 * Math.PI); // 30% smaller (10 * 0.7 = 7)
       ctx.fill();
     });
   }
@@ -1523,10 +1535,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   ) {
     if (!factoryPositionRef.current) return;
 
+    const scale = spriteScaleRef.current;
     const factoryX = factoryPositionRef.current.x;
     const factoryY = factoryPositionRef.current.y;
-    const factoryWidth = 200; // Double size
-    const factoryHeight = 160; // Double size
+    const factoryWidth = 200 * scale; // Double size
+    const factoryHeight = 160 * scale; // Double size
     const corner = factoryPositionRef.current.corner;
     const centerX = factoryX + factoryWidth / 2;
     const centerY = factoryY + factoryHeight / 2;
@@ -1728,10 +1741,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     const canvas = canvasRef.current;
     if (!canvas || !shieldPositionRef.current) return;
 
+    const scale = spriteScaleRef.current;
     const shieldX = shieldPositionRef.current.x;
     const shieldY = shieldPositionRef.current.y;
-    const shieldRadius = 80;
-    const shieldSize = 160; // Size for sprite (2x radius)
+    const shieldRadius = 80 * scale;
+    const shieldSize = 160 * scale; // Size for sprite (2x radius)
 
     const time = performance.now() / 1000;
     const hpRatio = playerHpRef.current / 100;
@@ -1900,8 +1914,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           // Black hole constants
-          const BLACK_HOLE_RADIUS = 150; // Influence radius
-          const KILL_RADIUS = 5; // Instant kill radius (extremely small)
+          const scale = spriteScaleRef.current;
+          const BLACK_HOLE_RADIUS = 150 * scale; // Influence radius
+          const KILL_RADIUS = 5 * scale; // Instant kill radius (extremely small)
           const GRAVITY_STRENGTH = 500; // Gravitational constant
           const MAX_FORCE = 2.0; // Cap force to prevent infinite acceleration
           const MAX_DAMAGE_PER_FRAME = 0.8; // Cap damage - slower death
