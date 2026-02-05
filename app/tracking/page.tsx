@@ -143,8 +143,7 @@ export default function TrackingPage() {
           }
 
           .sidebar a[title="Back to Home"] {
-            width: 42px !important;
-            height: 42px !important;
+            font-size: 0.9rem !important;
           }
 
           .sidebar a[title="Back to Home"] :global(svg) {
@@ -161,13 +160,9 @@ export default function TrackingPage() {
             gap: 1rem !important;
           }
 
-          .sidebar a {
-            font-size: 0.7rem !important;
-          }
-
           .sidebar a[title="Back to Home"] {
-            width: 35px !important;
-            height: 35px !important;
+            font-size: 0.65rem !important;
+            letter-spacing: 0.05em !important;
           }
 
           .sidebar a[title="Back to Home"] :global(svg) {
@@ -183,14 +178,9 @@ export default function TrackingPage() {
             padding: 0.4rem 0.15rem !important;
           }
 
-          .sidebar a {
-            font-size: 0.6rem !important;
-            letter-spacing: 0.05em !important;
-          }
-
           .sidebar a[title="Back to Home"] {
-            width: 30px !important;
-            height: 30px !important;
+            font-size: 0.55rem !important;
+            letter-spacing: 0.03em !important;
           }
         }
 
