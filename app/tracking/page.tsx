@@ -9,19 +9,7 @@ import { withBasePath } from "@/lib/basePath";
 // Import HandTracker dynamically with SSR disabled
 const HandTracker = dynamic(() => import("@/components/HandTracker"), {
   ssr: false,
-  loading: () => (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100dvh",
-        color: "#feca57",
-      }}
-    >
-      Loading battlefield...
-    </div>
-  ),
+  // No loading placeholder - HandTracker shows its own progress bar
 });
 
 export default function TrackingPage() {

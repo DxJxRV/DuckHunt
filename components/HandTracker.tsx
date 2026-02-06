@@ -100,6 +100,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [status, setStatus] = useState<Status>("initializing");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fps, setFps] = useState<number>(0);
+  const [loadingProgress, setLoadingProgress] = useState<number>(0);
+  const [loadingStuck, setLoadingStuck] = useState<boolean>(false);
   const [isFiring, setIsFiring] = useState<boolean>(false);
   const [ducks, setDucks] = useState<Duck[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -293,6 +295,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     };
   }, []);
 
+  // Initialize camera when rotating from portrait to landscape
+  useEffect(() => {
+    if (isMobile && !isPortrait && status === "initializing") {
+      console.log("Mobile landscape detected - initializing camera now");
+      window.location.reload();
+    }
+  }, [isPortrait]);
+
   // Adjust canvas overlay to match video dimensions with object-fit: contain
   useEffect(() => {
     const adjustCanvasOverlay = () => {
@@ -387,6 +397,38 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     return () => clearTimeout(timer);
   }, [countdown]);
 
+  // Fake progress bar effect
+  useEffect(() => {
+    if (status === "loading") {
+      // Fast progress to 80%
+      const interval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev < 80) {
+            return Math.min(prev + 2, 80); // Increment by 2% every 50ms → reaches 80% in 2s
+          }
+          return prev; // Stay at 80% until ready
+        });
+      }, 50);
+
+      // Timeout: If still loading after 30 seconds, offer retry
+      const timeout = setTimeout(() => {
+        if (status === "loading") {
+          console.warn("Loading stuck after 30s - offering retry");
+          setLoadingStuck(true);
+        }
+      }, 10000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    } else if (status === "ready") {
+      // Complete to 100% when ready
+      setLoadingProgress(100);
+      setLoadingStuck(false);
+    }
+  }, [status]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -472,6 +514,12 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     };
 
     async function initialize() {
+      // Don't initialize camera in mobile portrait (wait for landscape)
+      if (isMobile && isPortrait) {
+        console.log("Mobile portrait detected - waiting for landscape before initializing camera");
+        return;
+      }
+
       try {
         setStatus("loading");
 
@@ -593,7 +641,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       }
     }
 
-    initialize();
+    // Only initialize if not mobile portrait
+    const isMobileSize = window.matchMedia("(max-width: 1280px)").matches;
+    const isPortraitMode = window.matchMedia("(orientation: portrait)").matches;
+
+    if (!isMobileSize || !isPortraitMode) {
+      initialize();
+    }
 
     // Cleanup
     return () => {
@@ -3400,6 +3454,120 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         </>
       )}
 
+      {/* Loading screen with progress bar */}
+      {(status === "loading" || status === "initializing") && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            background: "rgba(10, 10, 10, 0.95)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "2rem",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: "clamp(0.8rem, 2vw, 1.2rem)",
+              color: "#feca57",
+              textAlign: "center",
+            }}
+          >
+            {status === "loading" ? "LOADING HAND TRACKING..." : "INITIALIZING..."}
+          </div>
+
+          {/* Progress bar */}
+          <div
+            style={{
+              width: "min(400px, 80%)",
+              height: "30px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "2px solid #feca57",
+              borderRadius: "15px",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
+            {/* Progress fill */}
+            <div
+              style={{
+                width: `${loadingProgress}%`,
+                height: "100%",
+                background: "linear-gradient(90deg, #ff6b6b, #feca57)",
+                transition: "width 0.3s ease",
+              }}
+            />
+
+            {/* Progress text */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "'Press Start 2P', monospace",
+                fontSize: "0.7rem",
+                color: "#ffffff",
+                textShadow: "0 0 10px rgba(0,0,0,0.8)",
+              }}
+            >
+              {loadingProgress}%
+            </div>
+          </div>
+
+          {/* Retry button if stuck */}
+          {loadingStuck && (
+            <>
+              <div
+                style={{
+                  fontFamily: "'Oxanium', sans-serif",
+                  fontSize: "0.9rem",
+                  color: "#ff6b6b",
+                  textAlign: "center",
+                  marginTop: "1rem",
+                }}
+              >
+                La carga está tardando más de lo normal...
+              </div>
+              <button
+                onClick={() => window.location.reload()}
+                style={{
+                  padding: "1rem 2rem",
+                  fontFamily: "'Press Start 2P', monospace",
+                  fontSize: "0.8rem",
+                  background: "linear-gradient(135deg, #ff6b6b, #ff5252)",
+                  border: "2px solid #ff9f43",
+                  borderRadius: "15px",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  marginTop: "1rem",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
+                REINTENTAR
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Error message */}
       {status === "error" && (
         <div
@@ -3426,37 +3594,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       )}
 
       {/* Loading message */}
-      {(status === "initializing" || status === "loading") && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            padding: "2rem",
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            borderRadius: "8px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              width: "50px",
-              height: "50px",
-              border: "4px solid #333",
-              borderTop: "4px solid #feca57",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 1rem",
-            }}
-          />
-          <p style={{ color: "#feca57" }}>
-            {status === "initializing"
-              ? "Initializing..."
-              : "Loading hand tracking model..."}
-          </p>
-        </div>
-      )}
+      {/* Old loading spinner removed - using progress bar instead */}
 
       {/* Leaderboard Modal */}
       {showLeaderboard && (
