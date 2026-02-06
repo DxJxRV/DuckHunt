@@ -155,14 +155,13 @@ export default function TrackingPage() {
             transform: "rotate(180deg)",
             fontSize: "1.8rem",
             fontWeight: "bold",
-            background: "linear-gradient(to bottom, #ff6b6b, #feca57)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
             letterSpacing: "0.1em",
             textDecoration: "none",
             transition: "all 0.3s ease",
             cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.opacity = "0.7";
@@ -172,7 +171,25 @@ export default function TrackingPage() {
           }}
           title="Back to Home"
         >
-          VoidHunter.com
+          <span style={{
+            color: "rgba(255, 255, 255, 0.3)",
+            fontSize: "0.7rem",
+            fontWeight: 500,
+          }}>
+            dxjx.dev/
+          </span>
+          <span
+            style={{
+              fontSize: "1.8rem",
+              fontWeight: "bold",
+              background: "linear-gradient(to bottom, #ff6b6b, #feca57)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            VoidHunter
+          </span>
         </Link>
       </aside>
 

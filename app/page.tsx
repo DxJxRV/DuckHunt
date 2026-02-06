@@ -122,17 +122,34 @@ export default function Home() {
         >
           <div
             style={{
-              fontSize: "1.3rem",
-              fontFamily: "var(--font-body)",
-              fontWeight: 800,
-              letterSpacing: "0.02em",
-              background: "linear-gradient(135deg, #ff6b6b, #feca57)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: "0.1rem",
             }}
           >
-            VoidHunter.com
+            <span style={{
+              fontSize: "0.65rem",
+              color: "rgba(255, 255, 255, 0.35)",
+              fontFamily: "var(--font-body)",
+              fontWeight: 500,
+            }}>
+              dxjx.dev/
+            </span>
+            <span
+              style={{
+                fontSize: "1.3rem",
+                fontFamily: "var(--font-body)",
+                fontWeight: 800,
+                letterSpacing: "0.02em",
+                background: "linear-gradient(135deg, #ff6b6b, #feca57)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              VoidHunter
+            </span>
           </div>
 
           <Link
