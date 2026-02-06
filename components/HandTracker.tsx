@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   FilesetResolver,
   HandLandmarker,
   HandLandmarkerResult,
   FaceDetector,
 } from "@mediapipe/tasks-vision";
-import { Volume2, VolumeX, Pause, Play, Hand, Smartphone, Undo, Redo, Cross, Plane, Star, RotateCcw } from "lucide-react";
+import { Volume2, VolumeX, Pause, Play, Hand, Smartphone, Undo, Redo, Cross, Plane, Star, RotateCcw, Trophy } from "lucide-react";
 import { withBasePath } from "@/lib/basePath";
+
+const ArcadeNameInput = dynamic(() => import("@/components/ArcadeNameInput"), {
+  ssr: false,
+});
+
 import {
   WASM_FILES_PATH,
   MODEL_PATH,
@@ -120,6 +126,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [comboCount, setComboCount] = useState<number>(0);
+  const [showNameInput, setShowNameInput] = useState<boolean>(false);
+  const [isHighScore, setIsHighScore] = useState<boolean>(false);
+  const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
+  const [leaderboardData, setLeaderboardData] = useState<Array<{name: string, score: number, date: string}>>([]);
+  const [showLeaderboardPreview, setShowLeaderboardPreview] = useState<boolean>(false);
   const [canvasOverlayDimensions, setCanvasOverlayDimensions] = useState<{
     width: string;
     height: string;
@@ -344,6 +355,20 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   useEffect(() => {
     spriteScaleRef.current = isMobile ? 1.35 : 1.0;
   }, [isMobile]);
+
+  // Show leaderboard preview when killing 1/3 of total planes
+  useEffect(() => {
+    const triggerKills = Math.floor(TOTAL_PLANES / 3); // 1/3 of total (≈7 for 20 planes)
+
+    if (planesKilled === triggerKills && !showLeaderboardPreview && !gameOver && !victory) {
+      // Fetch and show preview
+      fetchLeaderboard().then(() => {
+        setShowLeaderboardPreview(true);
+        // Auto-hide after 8 seconds
+        setTimeout(() => setShowLeaderboardPreview(false), 8000);
+      });
+    }
+  }, [planesKilled]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -687,7 +712,19 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
               console.log(`Victory! Duration: ${levelDuration.toFixed(1)}s, Speed Bonus: +${speedBonus}, BH Penalty: -${blackHolePenalty}, Final: ${finalBonus > 0 ? '+' : ''}${finalBonus}`);
 
-              setScore((prev) => prev + finalBonus);
+              setScore((prev) => {
+                const finalScore = prev + finalBonus;
+
+                // Check if it's a high score (async)
+                checkIfHighScore(finalScore).then((isHigh) => {
+                  setIsHighScore(isHigh);
+                  if (isHigh) {
+                    setShowNameInput(true);
+                  }
+                });
+
+                return finalScore;
+              });
             }
             return newKilled;
           });
@@ -976,6 +1013,58 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   }
 
   // Reset game without reloading page (keeps camera and MediaPipe active)
+  async function checkIfHighScore(score: number): Promise<boolean> {
+    try {
+      const response = await fetch(withBasePath("/api/leaderboard"));
+      const leaderboard = await response.json();
+
+      // If less than 10 entries, it's a high score
+      if (leaderboard.length < 10) return true;
+
+      // Check if beats lowest score
+      const lowestScore = leaderboard[leaderboard.length - 1].score;
+      return score > lowestScore;
+    } catch (error) {
+      console.error("Error checking high score:", error);
+      return false;
+    }
+  }
+
+  async function saveHighScore(name: string, score: number) {
+    try {
+      const response = await fetch(withBasePath("/api/leaderboard"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, score }),
+      });
+
+      if (!response.ok) throw new Error("Failed to save score");
+
+      console.log(`High score saved! ${name}: ${score}`);
+      setShowNameInput(false);
+
+      // Refresh leaderboard data
+      fetchLeaderboard();
+    } catch (error) {
+      console.error("Error saving high score:", error);
+    }
+  }
+
+  async function fetchLeaderboard() {
+    try {
+      const response = await fetch(withBasePath("/api/leaderboard"));
+      const data = await response.json();
+      setLeaderboardData(data);
+    } catch (error) {
+      console.error("Error fetching leaderboard:", error);
+    }
+  }
+
+  function openLeaderboard() {
+    fetchLeaderboard();
+    setShowLeaderboard(true);
+  }
+
   function resetGame() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -2662,6 +2751,138 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         }}
       />
 
+      {/* Leaderboard button - bottom right of video */}
+      <button
+        onClick={openLeaderboard}
+        style={{
+          position: "absolute",
+          bottom: `calc(${canvasOverlayDimensions.top} + ${canvasOverlayDimensions.height} - 80px)`,
+          left: `calc(${canvasOverlayDimensions.left} + ${canvasOverlayDimensions.width} - 80px)`,
+          width: "60px",
+          height: "60px",
+          borderRadius: showLeaderboardPreview ? "0 30px 30px 0" : "50%",
+          background: showLeaderboardPreview
+            ? "rgba(10, 10, 10, 0.85)"
+            : "rgba(254, 202, 87, 0.1)",
+          border: "2px solid #feca57",
+          borderLeft: showLeaderboardPreview ? "none" : "2px solid #feca57",
+          borderTop: "2px solid #feca57",
+          borderBottom: "2px solid #feca57",
+          backdropFilter: "blur(20px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#feca57",
+          cursor: "pointer",
+          zIndex: 50,
+          transition: "all 0.3s ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!showLeaderboardPreview) {
+            e.currentTarget.style.transform = "scale(1.1)";
+            e.currentTarget.style.background = "rgba(254, 202, 87, 0.2)";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!showLeaderboardPreview) {
+            e.currentTarget.style.transform = "scale(1)";
+            e.currentTarget.style.background = "rgba(254, 202, 87, 0.1)";
+          }
+        }}
+      >
+        <Trophy size={28} />
+      </button>
+
+      {/* Leaderboard Preview Ribbon (Top 3) */}
+      {showLeaderboardPreview && leaderboardData.length >= 3 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: `calc(${canvasOverlayDimensions.top} + ${canvasOverlayDimensions.height} - 80px)`,
+            right: `calc(100% - ${canvasOverlayDimensions.left} - ${canvasOverlayDimensions.width} + 60px)`,
+            height: "60px",
+            boxSizing: "border-box",
+            display: "flex",
+            alignItems: "center",
+            gap: "1rem",
+            padding: "0 1.5rem 0 1rem",
+            background: "rgba(10, 10, 10, 0.95)",
+            borderTop: "2px solid #feca57",
+            borderBottom: "2px solid #feca57",
+            borderLeft: "2px solid #feca57",
+            borderRight: "none",
+            borderTopLeftRadius: "30px",
+            borderBottomLeftRadius: "30px",
+            backdropFilter: "blur(20px)",
+            zIndex: 49,
+            animation: "slideInRight 0.5s ease-out",
+          }}
+        >
+          {/* Title */}
+          <div
+            style={{
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: "0.6rem",
+              color: "#feca57",
+              whiteSpace: "nowrap",
+            }}
+          >
+            TOP 3
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: "2px", height: "30px", background: "#feca57", opacity: 0.3 }} />
+
+          {/* Top 3 entries in horizontal line */}
+          <div style={{ display: "flex", gap: "1.5rem", alignItems: "center" }}>
+            {leaderboardData.slice(0, 3).map((entry, index) => (
+              <div
+                key={index}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'Press Start 2P', monospace",
+                    fontSize: "0.55rem",
+                    color:
+                      index === 0
+                        ? "#feca57"
+                        : index === 1
+                        ? "#c0c0c0"
+                        : "#cd7f32",
+                  }}
+                >
+                  {index + 1}.
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Press Start 2P', monospace",
+                    fontSize: "0.5rem",
+                    color: "#ffffff",
+                  }}
+                >
+                  {entry.name.substring(0, 6)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Press Start 2P', monospace",
+                    fontSize: "0.5rem",
+                    color: "#00ff88",
+                  }}
+                >
+                  {entry.score}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Pause overlay */}
       {isPaused && (
         <>
@@ -3237,6 +3458,189 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         </div>
       )}
 
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <>
+          {/* Dark overlay */}
+          <div
+            onClick={() => setShowLeaderboard(false)}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0, 0, 0, 0.8)",
+              zIndex: 2000,
+            }}
+          />
+
+          {/* Modal */}
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              padding: "2rem",
+              background: "rgba(10, 10, 10, 0.95)",
+              border: "2px solid #feca57",
+              borderRadius: "20px",
+              backdropFilter: "blur(20px)",
+              zIndex: 2001,
+              maxWidth: "90%",
+              width: "min(600px, 90vw)",
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            {/* Title */}
+            <h2
+              style={{
+                fontFamily: "'Press Start 2P', monospace",
+                fontSize: "clamp(1rem, 4vw, 1.5rem)",
+                color: "#feca57",
+                textAlign: "center",
+                marginBottom: "2rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "1rem",
+              }}
+            >
+              <Trophy size={32} />
+              TOP 10
+            </h2>
+
+            {/* Leaderboard list */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              {leaderboardData.length === 0 ? (
+                <p
+                  style={{
+                    fontFamily: "'Oxanium', sans-serif",
+                    fontSize: "1rem",
+                    color: "#888",
+                    textAlign: "center",
+                    padding: "2rem",
+                  }}
+                >
+                  No hay scores todavía. ¡Sé el primero!
+                </p>
+              ) : (
+                leaderboardData.map((entry, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "1rem",
+                      marginBottom: "0.5rem",
+                      background:
+                        index === 0
+                          ? "rgba(254, 202, 87, 0.15)"
+                          : index === 1
+                          ? "rgba(192, 192, 192, 0.1)"
+                          : index === 2
+                          ? "rgba(205, 127, 50, 0.1)"
+                          : "rgba(255, 255, 255, 0.05)",
+                      border: `1px solid ${
+                        index === 0
+                          ? "#feca57"
+                          : index === 1
+                          ? "#c0c0c0"
+                          : index === 2
+                          ? "#cd7f32"
+                          : "#333"
+                      }`,
+                      borderRadius: "10px",
+                    }}
+                  >
+                    {/* Rank */}
+                    <div
+                      style={{
+                        fontFamily: "'Press Start 2P', monospace",
+                        fontSize: "0.9rem",
+                        color:
+                          index === 0
+                            ? "#feca57"
+                            : index === 1
+                            ? "#c0c0c0"
+                            : index === 2
+                            ? "#cd7f32"
+                            : "#666",
+                        minWidth: "40px",
+                      }}
+                    >
+                      #{index + 1}
+                    </div>
+
+                    {/* Name */}
+                    <div
+                      style={{
+                        fontFamily: "'Press Start 2P', monospace",
+                        fontSize: "0.8rem",
+                        color: "#ffffff",
+                        flex: 1,
+                        textAlign: "center",
+                      }}
+                    >
+                      {entry.name}
+                    </div>
+
+                    {/* Score */}
+                    <div
+                      style={{
+                        fontFamily: "'Press Start 2P', monospace",
+                        fontSize: "0.9rem",
+                        color: "#00ff88",
+                        minWidth: "100px",
+                        textAlign: "right",
+                      }}
+                    >
+                      {entry.score}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => setShowLeaderboard(false)}
+              style={{
+                width: "100%",
+                padding: "1rem",
+                fontFamily: "'Press Start 2P', monospace",
+                fontSize: "0.7rem",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "15px",
+                color: "#ffffff",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+              }}
+            >
+              CERRAR
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* High Score Name Input */}
+      {showNameInput && (
+        <ArcadeNameInput
+          score={score}
+          onSubmit={(name) => saveHighScore(name, score)}
+        />
+      )}
+
       {/* CSS animations and responsive styles */}
       <style jsx global>{`
         @keyframes spin {
@@ -3280,6 +3684,17 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           }
           100% {
             transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideInRight {
+          0% {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          100% {
+            transform: translateX(0);
             opacity: 1;
           }
         }

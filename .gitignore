@@ -39,3 +39,6 @@ next-env.d.ts
 **/public/sw.js.map
 **/public/workbox-*.js.map
 **/public/worker-*.js.map
+
+# Leaderboard data (dynamic)
+/data/leaderboard.json

@@ -112,12 +112,8 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 const nextConfig = {
   reactStrictMode: true,
   basePath: basePath,
-  // Note: assetPrefix not needed for static export with basePath
-  output: "export",
+  // Server mode (not static export) for API routes
   trailingSlash: true,
-  images: {
-    unoptimized: true, // Required for static export
-  },
 };
 
 module.exports = withPWA(nextConfig);
