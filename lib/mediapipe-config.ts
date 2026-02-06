@@ -27,7 +27,7 @@ export const CROSSHAIR_DEADZONE = 0.05; // Deadzone pequeño
 
 // Plane spawning system
 export const MAX_PLANES_ALIVE = 5; // Maximum planes flying at once
-export const TOTAL_PLANES = 3; // Total planes to spawn in the game
+export const TOTAL_PLANES = 20; // Total planes to spawn in the game
 export const SPAWN_INTERVAL_MS = 3000; // Time between spawns (3 seconds)
 
 // ROI (Region of Interest) optimization constants
