@@ -49,6 +49,7 @@ interface Duck {
   alive: boolean;
   hp: number;
   maxHp: number;
+  killType?: "instant" | "normal"; // Track how the plane was killed
 }
 
 interface Particle {
@@ -107,6 +108,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [showResetConfirmation, setShowResetConfirmation] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [comboCount, setComboCount] = useState<number>(0);
   const [canvasOverlayDimensions, setCanvasOverlayDimensions] = useState<{
     width: string;
     height: string;
@@ -158,6 +160,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const spriteScaleRef = useRef<number>(1.0);
   const isFistClosedRef = useRef<boolean>(false);
   const isFistDetectedRef = useRef<boolean>(false);
+
+  // Score system refs
+  const levelStartTimeRef = useRef<number>(0);
+  const lastKillTimeRef = useRef<number>(0);
+  const comboKillsRef = useRef<number>(0);
+  const blackHoleActiveTimeRef = useRef<number>(0);
+  const blackHoleStartTimeRef = useRef<number>(0);
 
   // Ducks ref for access in animation loop
   const ducksRef = useRef<Duck[]>([]);
@@ -332,8 +341,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       if (countdown > 1) {
         setCountdown(countdown - 1);
       } else {
-        // Countdown finished
+        // Countdown finished - start level timer
         setCountdown(null);
+        levelStartTimeRef.current = performance.now();
       }
     }, 1000);
 
@@ -609,20 +619,66 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       ducks.forEach((duck, index) => {
         const prevDuck = previousDucks[index];
 
-        // Duck died - play explosion
+        // Duck died - play explosion and award points
         if (prevDuck && prevDuck.alive && !duck.alive) {
-          setScore((prev) => prev + 10);
+          const now = performance.now();
+
+          // Calculate base points by kill type
+          const basePoints = duck.killType === "instant" ? 50 : 20;
+
+          // Check for combo (kills within 2 seconds)
+          const timeSinceLastKill = now - lastKillTimeRef.current;
+          if (timeSinceLastKill < 2000 && comboKillsRef.current > 0) {
+            // Combo active - increment combo counter
+            comboKillsRef.current += 1;
+          } else {
+            // New combo or first kill
+            comboKillsRef.current = 1;
+          }
+          lastKillTimeRef.current = now;
+
+          // Apply combo multiplier (1x, 2x, 3x, etc.)
+          const comboMultiplier = comboKillsRef.current;
+          const finalPoints = basePoints * comboMultiplier;
+
+          setScore((prev) => prev + finalPoints);
+          setComboCount(comboKillsRef.current); // Update UI combo display
+
+          console.log(`Kill: ${duck.killType}, Base: ${basePoints}, Combo: x${comboMultiplier}, Total: ${finalPoints}`);
+
           setPlanesKilled((prev) => {
             const newKilled = prev + 1;
             // Check for victory
             if (newKilled === TOTAL_PLANES) {
+              const victoryNow = performance.now();
               setVictory(true);
-              setVictoryTime(performance.now());
+              setVictoryTime(victoryNow);
+
+              // Calculate final score bonuses and penalties
+              const levelDuration = (victoryNow - levelStartTimeRef.current) / 1000; // in seconds
+              const blackHoleTotalTime = (blackHoleActiveTimeRef.current + (blackHoleStartTimeRef.current > 0 ? victoryNow - blackHoleStartTimeRef.current : 0)) / 1000; // in seconds
+
+              // Speed bonus: faster = more points (max 500 bonus for < 30s, decreasing)
+              const speedBonus = Math.max(0, Math.floor(500 - (levelDuration - 30) * 10));
+
+              // Black hole penalty: -1 point per second of active time
+              const blackHolePenalty = Math.floor(blackHoleTotalTime);
+
+              const finalBonus = speedBonus - blackHolePenalty;
+
+              console.log(`Victory! Duration: ${levelDuration.toFixed(1)}s, Speed Bonus: +${speedBonus}, BH Penalty: -${blackHolePenalty}, Final: ${finalBonus > 0 ? '+' : ''}${finalBonus}`);
+
+              setScore((prev) => prev + finalBonus);
             }
             return newKilled;
           });
-          setHitMessage("CONSUMED! +10");
-          setTimeout(() => setHitMessage(null), 500);
+          // Show kill message with points and combo
+          const killMsg = duck.killType === "instant"
+            ? `INSTANT KILL! +${finalPoints}`
+            : `DESTROYED! +${finalPoints}`;
+          const comboMsg = comboMultiplier > 1 ? ` (x${comboMultiplier} COMBO!)` : "";
+          setHitMessage(killMsg + comboMsg);
+          setTimeout(() => setHitMessage(null), 1000);
 
           // Create explosion particles
           createExplosionParticles(duck.x, duck.y);
@@ -895,6 +951,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     victoryRef.current = false;
     lastSpawnTimeRef.current = performance.now();
     factoryProgressRef.current = 0;
+
+    // Reset score system refs
+    levelStartTimeRef.current = 0; // Will be set when countdown finishes
+    lastKillTimeRef.current = 0;
+    comboKillsRef.current = 0;
+    blackHoleActiveTimeRef.current = 0;
+    blackHoleStartTimeRef.current = 0;
+    setComboCount(0);
 
     // Re-initialize game positions
     initializeDucks(canvas.width, canvas.height);
@@ -1245,6 +1309,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
         // Draw black hole effect if fist detected
         if (isFistDetectedRef.current && crosshairPositionRef.current) {
+          // Track black hole active time for penalty
+          if (blackHoleStartTimeRef.current === 0) {
+            blackHoleStartTimeRef.current = now;
+          }
+
           const t11 = performance.now();
           drawBlackHole(
             ctx,
@@ -1252,6 +1321,13 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             crosshairPositionRef.current.y
           );
           timings.drawBlackHole = performance.now() - t11;
+        } else {
+          // Black hole not active - accumulate time if it was active
+          if (blackHoleStartTimeRef.current > 0) {
+            const duration = now - blackHoleStartTimeRef.current;
+            blackHoleActiveTimeRef.current += duration;
+            blackHoleStartTimeRef.current = 0;
+          }
         }
 
         // Draw crosshair at independent position
@@ -1969,7 +2045,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
             if (distance < KILL_RADIUS) {
               // Too close - instant kill
-              return { ...duck, alive: false, hp: 0 };
+              return { ...duck, alive: false, hp: 0, killType: "instant" };
             }
 
             // Apply gravitational force: F = k / distance^2
@@ -1990,7 +2066,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             newHp -= damageRate;
 
             if (newHp <= 0) {
-              return { ...duck, alive: false, hp: 0 };
+              return { ...duck, alive: false, hp: 0, killType: "normal" };
             }
           }
         }
@@ -2683,6 +2759,18 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             >
               VICTORY
             </h2>
+            <div
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+                fontWeight: 600,
+                color: "#feca57",
+                textAlign: "center",
+                marginTop: "1rem",
+              }}
+            >
+              Score: {score}
+            </div>
             <button
               onClick={() => resetGame()}
               style={{
@@ -2752,6 +2840,18 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             >
               GAME OVER
             </h2>
+            <div
+              style={{
+                fontFamily: "var(--font-body)",
+                fontSize: "clamp(1.5rem, 5vw, 2.5rem)",
+                fontWeight: 600,
+                color: "#888",
+                textAlign: "center",
+                marginTop: "1rem",
+              }}
+            >
+              Score: {score}
+            </div>
             <button
               onClick={() => resetGame()}
               style={{
