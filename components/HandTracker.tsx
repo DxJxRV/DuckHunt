@@ -416,7 +416,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           console.warn("Loading stuck after 30s - offering retry");
           setLoadingStuck(true);
         }
-      }, 10000);
+      }, 20000);
 
       return () => {
         clearInterval(interval);
@@ -432,8 +432,8 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   useEffect(() => {
     let mounted = true;
 
-    // Load plane sprites
-    const loadSprites = async () => {
+    // Load plane sprites with progress tracking
+    const loadSprites = async (updateProgress: () => void) => {
       const img1 = new Image();
       const img2 = new Image();
       const factory1 = new Image();
@@ -453,14 +453,14 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       shield4.src = withBasePath("/sprites/shield-4.png");
 
       await Promise.all([
-        new Promise((resolve) => { img1.onload = resolve; img1.onerror = resolve; }),
-        new Promise((resolve) => { img2.onload = resolve; img2.onerror = resolve; }),
-        new Promise((resolve) => { factory1.onload = resolve; factory1.onerror = resolve; }),
-        new Promise((resolve) => { factory2.onload = resolve; factory2.onerror = resolve; }),
-        new Promise((resolve) => { shield1.onload = resolve; shield1.onerror = resolve; }),
-        new Promise((resolve) => { shield2.onload = resolve; shield2.onerror = resolve; }),
-        new Promise((resolve) => { shield3.onload = resolve; shield3.onerror = resolve; }),
-        new Promise((resolve) => { shield4.onload = resolve; shield4.onerror = resolve; }),
+        new Promise((resolve) => { img1.onload = () => { updateProgress(); resolve(null); }; img1.onerror = resolve; }),
+        new Promise((resolve) => { img2.onload = () => { updateProgress(); resolve(null); }; img2.onerror = resolve; }),
+        new Promise((resolve) => { factory1.onload = () => { updateProgress(); resolve(null); }; factory1.onerror = resolve; }),
+        new Promise((resolve) => { factory2.onload = () => { updateProgress(); resolve(null); }; factory2.onerror = resolve; }),
+        new Promise((resolve) => { shield1.onload = () => { updateProgress(); resolve(null); }; shield1.onerror = resolve; }),
+        new Promise((resolve) => { shield2.onload = () => { updateProgress(); resolve(null); }; shield2.onerror = resolve; }),
+        new Promise((resolve) => { shield3.onload = () => { updateProgress(); resolve(null); }; shield3.onerror = resolve; }),
+        new Promise((resolve) => { shield4.onload = () => { updateProgress(); resolve(null); }; shield4.onerror = resolve; }),
       ]);
 
       planeSprite1Ref.current = img1;
@@ -479,11 +479,16 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     };
 
     // Load audio files
-    const loadAudio = () => {
+    const loadAudio = (updateProgress: () => void) => {
       const bgMusic = new Audio(withBasePath("/sounds/background-music.mp3"));
       const engine = new Audio(withBasePath("/sounds/engine.mp3"));
       const damage = new Audio(withBasePath("/sounds/damage.mp3"));
       const explosion = new Audio(withBasePath("/sounds/explosion.mp3"));
+
+      bgMusic.addEventListener('canplaythrough', updateProgress, { once: true });
+      engine.addEventListener('canplaythrough', updateProgress, { once: true });
+      damage.addEventListener('canplaythrough', updateProgress, { once: true });
+      explosion.addEventListener('canplaythrough', updateProgress, { once: true });
 
       bgMusic.loop = true;
       bgMusic.volume = 0.3;
@@ -523,11 +528,20 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       try {
         setStatus("loading");
 
+        const totalAssets = 12; // 8 sprites + 4 audio
+        let loadedAssets = 0;
+
+        const updateProgress = () => {
+          loadedAssets++;
+          const progress = (loadedAssets / totalAssets) * 70; // Assets = 70% of total
+          setLoadingProgress(Math.floor(progress));
+        };
+
         // Load sprites first
-        await loadSprites();
+        await loadSprites(updateProgress);
 
         // Load audio files
-        loadAudio();
+        loadAudio(updateProgress);
 
         // Load MediaPipe FilesetResolver and HandLandmarker
         const vision = await FilesetResolver.forVisionTasks(WASM_FILES_PATH);
@@ -3482,6 +3496,19 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           >
             {status === "loading" ? "LOADING HAND TRACKING..." : "INITIALIZING..."}
           </div>
+
+          {/* Info text */}
+          <p
+            style={{
+              fontFamily: "'Oxanium', sans-serif",
+              fontSize: "0.8rem",
+              color: "#888",
+              textAlign: "center",
+              maxWidth: "400px",
+            }}
+          >
+            La primera vez puede tardar un poco más
+          </p>
 
           {/* Progress bar */}
           <div
