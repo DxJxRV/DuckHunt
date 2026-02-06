@@ -63,6 +63,16 @@ interface Particle {
   color: string;
 }
 
+interface FloatingText {
+  x: number;
+  y: number;
+  text: string;
+  life: number;
+  maxLife: number;
+  color: string;
+  isCombo: boolean;
+}
+
 interface Bullet {
   x: number;
   y: number;
@@ -88,6 +98,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const [ducks, setDucks] = useState<Duck[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [bullets, setBullets] = useState<Bullet[]>([]);
+  const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [playerHp, setPlayerHp] = useState<number>(100);
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [victory, setVictory] = useState<boolean>(false);
@@ -172,6 +183,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
   const ducksRef = useRef<Duck[]>([]);
   const particlesRef = useRef<Particle[]>([]);
   const bulletsRef = useRef<Bullet[]>([]);
+  const floatingTextsRef = useRef<FloatingText[]>([]);
   const lastShootTimeRef = useRef<Map<number, number>>(new Map());
   const playerHpRef = useRef<number>(100);
   const lastSpawnTimeRef = useRef<number>(0);
@@ -401,10 +413,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
     // Load audio files
     const loadAudio = () => {
-      const bgMusic = new Audio("/sounds/background-music.mp3");
-      const engine = new Audio("/sounds/engine.mp3");
-      const damage = new Audio("/sounds/damage.mp3");
-      const explosion = new Audio("/sounds/explosion.mp3");
+      const bgMusic = new Audio(withBasePath("/sounds/background-music.mp3"));
+      const engine = new Audio(withBasePath("/sounds/engine.mp3"));
+      const damage = new Audio(withBasePath("/sounds/damage.mp3"));
+      const explosion = new Audio(withBasePath("/sounds/explosion.mp3"));
 
       bgMusic.loop = true;
       bgMusic.volume = 0.3;
@@ -594,6 +606,11 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     bulletsRef.current = bullets;
   }, [bullets]);
 
+  // Sync floatingTexts state to ref
+  useEffect(() => {
+    floatingTextsRef.current = floatingTexts;
+  }, [floatingTexts]);
+
   // Sync playerHp state to ref
   useEffect(() => {
     playerHpRef.current = playerHp;
@@ -624,7 +641,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           const now = performance.now();
 
           // Calculate base points by kill type
+          console.log(`Duck died - killType: "${duck.killType}", prevDuck killType: "${prevDuck.killType}"`);
           const basePoints = duck.killType === "instant" ? 50 : 20;
+          console.log(`Base points: ${basePoints} (killType: ${duck.killType})`);
 
           // Check for combo (kills within 2 seconds)
           const timeSinceLastKill = now - lastKillTimeRef.current;
@@ -682,6 +701,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
 
           // Create explosion particles
           createExplosionParticles(duck.x, duck.y);
+
+          // Create floating text showing points earned
+          createFloatingText(duck.x, duck.y, finalPoints, duck.killType || "normal", comboMultiplier);
 
           // Play explosion sound
           if (explosionSoundRef.current && !isMutedRef.current) {
@@ -793,6 +815,39 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     }
 
     setParticles((prev) => [...prev, ...newParticles]);
+  }
+
+  function createFloatingText(x: number, y: number, points: number, killType: "instant" | "normal", comboMultiplier: number) {
+    const color = killType === "instant" ? "#feca57" : "#ffffff"; // Yellow for instant, white for normal
+    const isCombo = comboMultiplier > 1;
+    const text = isCombo ? `+${points} x${comboMultiplier}` : `+${points}`;
+
+    console.log(`Creating floating text at (${x}, ${y}): "${text}", color: ${color}, combo: ${isCombo}`);
+
+    const floatingText: FloatingText = {
+      x,
+      y,
+      text,
+      life: 1,
+      maxLife: 1,
+      color,
+      isCombo,
+    };
+
+    // Directly modify ref instead of using setState (avoids timing issues with RAF loop)
+    floatingTextsRef.current = [...floatingTextsRef.current, floatingText];
+    console.log(`Total floating texts in ref: ${floatingTextsRef.current.length}`);
+  }
+
+  function updateFloatingTexts() {
+    // Directly modify ref for immediate effect in RAF loop
+    floatingTextsRef.current = floatingTextsRef.current
+      .map((text) => ({
+        ...text,
+        y: text.y - 1.5, // Float up
+        life: text.life - 0.015, // Fade out
+      }))
+      .filter((text) => text.life > 0); // Remove dead texts
   }
 
   function createExplosionParticles(x: number, y: number) {
@@ -937,6 +992,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     setDucks([]);
     setBullets([]);
     setParticles([]);
+    setFloatingTexts([]);
     setHitMessage(null);
     setGameOverTime(0);
     setVictoryTime(0);
@@ -945,6 +1001,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     ducksRef.current = [];
     bulletsRef.current = [];
     particlesRef.current = [];
+    floatingTextsRef.current = [];
     totalSpawnedRef.current = 0;
     planesKilledRef.current = 0;
     gameOverRef.current = false;
@@ -1119,6 +1176,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
         drawParticles(ctx);
         drawBullets(ctx);
         drawDucks(ctx);
+        drawFloatingTexts(ctx);
         drawFactory(ctx, canvas.width, canvas.height);
         drawPlayerShield(ctx);
 
@@ -1199,6 +1257,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       const t4 = performance.now();
       updateParticles();
       timings.updateParticles = performance.now() - t4;
+
+      // Update floating texts
+      updateFloatingTexts();
 
       // Update duck physics (includes shooting)
       const t5 = performance.now();
@@ -1353,6 +1414,9 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       drawPlayerShield(ctx);
       timings.drawShield = performance.now() - t12;
 
+      // Draw floating texts (on top of shield)
+      drawFloatingTexts(ctx);
+
       // Draw "FIRE!" message if firing
       if (isFiring) {
         drawFireMessage(ctx, canvas.width, canvas.height);
@@ -1379,24 +1443,24 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
       const totalFrameTime = performance.now() - frameStart;
       timings.totalFrame = totalFrameTime;
 
-      if (frameCountRef.current % 60 === 0) {
-        console.log("🔍 PERFORMANCE PROFILING:");
-        console.log(`├─ MediaPipe Detection: ${timings.mediapipe?.toFixed(2)}ms (${((timings.mediapipe / totalFrameTime) * 100).toFixed(1)}%)`);
-        console.log(`├─ Clear Canvas: ${timings.clear?.toFixed(2)}ms`);
-        console.log(`├─ Update Bullets: ${timings.updateBullets?.toFixed(2)}ms`);
-        console.log(`├─ Update Particles: ${timings.updateParticles?.toFixed(2)}ms`);
-        console.log(`├─ Update Duck Physics: ${timings.updateDuckPhysics?.toFixed(2)}ms`);
-        console.log(`├─ Draw Particles: ${timings.drawParticles?.toFixed(2)}ms`);
-        console.log(`├─ Draw Bullets: ${timings.drawBullets?.toFixed(2)}ms`);
-        console.log(`├─ Draw Ducks: ${timings.drawDucks?.toFixed(2)}ms (${((timings.drawDucks / totalFrameTime) * 100).toFixed(1)}%)`);
-        console.log(`├─ Draw Factory: ${timings.drawFactory?.toFixed(2)}ms (${((timings.drawFactory / totalFrameTime) * 100).toFixed(1)}%)`);
-        console.log(`├─ Hand Processing: ${timings.handProcessing?.toFixed(2)}ms`);
-        console.log(`├─ Draw Black Hole: ${timings.drawBlackHole?.toFixed(2) || '0.00'}ms ${timings.drawBlackHole ? `(${((timings.drawBlackHole / totalFrameTime) * 100).toFixed(1)}%)` : ''}`);
-        console.log(`├─ Draw Shield: ${timings.drawShield?.toFixed(2)}ms (${((timings.drawShield / totalFrameTime) * 100).toFixed(1)}%)`);
-        console.log(`└─ TOTAL FRAME: ${totalFrameTime.toFixed(2)}ms (Target: 16.67ms for 60fps)`);
-        console.log(`   Current FPS: ${Math.round(1000 / totalFrameTime)}`);
-        console.log("");
-      }
+      // if (frameCountRef.current % 60 === 0) {
+      //   console.log("🔍 PERFORMANCE PROFILING:");
+      //   console.log(`├─ MediaPipe Detection: ${timings.mediapipe?.toFixed(2)}ms (${((timings.mediapipe / totalFrameTime) * 100).toFixed(1)}%)`);
+      //   console.log(`├─ Clear Canvas: ${timings.clear?.toFixed(2)}ms`);
+      //   console.log(`├─ Update Bullets: ${timings.updateBullets?.toFixed(2)}ms`);
+      //   console.log(`├─ Update Particles: ${timings.updateParticles?.toFixed(2)}ms`);
+      //   console.log(`├─ Update Duck Physics: ${timings.updateDuckPhysics?.toFixed(2)}ms`);
+      //   console.log(`├─ Draw Particles: ${timings.drawParticles?.toFixed(2)}ms`);
+      //   console.log(`├─ Draw Bullets: ${timings.drawBullets?.toFixed(2)}ms`);
+      //   console.log(`├─ Draw Ducks: ${timings.drawDucks?.toFixed(2)}ms (${((timings.drawDucks / totalFrameTime) * 100).toFixed(1)}%)`);
+      //   console.log(`├─ Draw Factory: ${timings.drawFactory?.toFixed(2)}ms (${((timings.drawFactory / totalFrameTime) * 100).toFixed(1)}%)`);
+      //   console.log(`├─ Hand Processing: ${timings.handProcessing?.toFixed(2)}ms`);
+      //   console.log(`├─ Draw Black Hole: ${timings.drawBlackHole?.toFixed(2) || '0.00'}ms ${timings.drawBlackHole ? `(${((timings.drawBlackHole / totalFrameTime) * 100).toFixed(1)}%)` : ''}`);
+      //   console.log(`├─ Draw Shield: ${timings.drawShield?.toFixed(2)}ms (${((timings.drawShield / totalFrameTime) * 100).toFixed(1)}%)`);
+      //   console.log(`└─ TOTAL FRAME: ${totalFrameTime.toFixed(2)}ms (Target: 16.67ms for 60fps)`);
+      //   console.log(`   Current FPS: ${Math.round(1000 / totalFrameTime)}`);
+      //   console.log("");
+      // }
 
       // Continue loop
       animationFrameRef.current = requestAnimationFrame(detect);
@@ -2044,8 +2108,10 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
             // Inside black hole influence
 
             if (distance < KILL_RADIUS) {
-              // Too close - instant kill
-              return { ...duck, alive: false, hp: 0, killType: "instant" };
+              // Too close - instant kill ONLY if plane had high HP (>75%)
+              // If plane was already damaged, it's a normal kill
+              const killType = duck.hp > 75 ? "instant" : "normal";
+              return { ...duck, alive: false, hp: 0, killType };
             }
 
             // Apply gravitational force: F = k / distance^2
@@ -2316,6 +2382,48 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
     ctx.restore();
   }
 
+  function drawFloatingTexts(ctx: CanvasRenderingContext2D) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    floatingTextsRef.current.forEach((text) => {
+      const alpha = text.life; // Fade out as life decreases
+      const fontSize = text.isCombo ? 36 : 28; // Larger for combos
+      const fontWeight = text.isCombo ? "900" : "700";
+
+      ctx.save();
+
+      // Un-mirror the text (canvas is mirrored with scaleX(-1))
+      ctx.translate(text.x, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-text.x, 0);
+
+      ctx.globalAlpha = alpha;
+      ctx.font = `${fontWeight} ${fontSize}px system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      // Strong black outline for visibility
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = text.isCombo ? 6 : 5;
+      ctx.strokeText(text.text, text.x, text.y);
+
+      // Fill with color (yellow for instant, white for normal)
+      ctx.fillStyle = text.color;
+      ctx.fillText(text.text, text.x, text.y);
+
+      // Add glow effect for combos
+      if (text.isCombo) {
+        ctx.shadowColor = text.color;
+        ctx.shadowBlur = 20;
+        ctx.fillText(text.text, text.x, text.y);
+        ctx.shadowBlur = 0;
+      }
+
+      ctx.restore();
+    });
+  }
+
   function drawHitMessage(
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -2476,7 +2584,7 @@ export default function HandTracker({ isPausedProp }: { isPausedProp?: boolean }
           {/* Hand Detection Status */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem" }}>
             <img
-              src={isFistDetected ? "/icons/hand-ok.svg" : (handsDetected.right ? "/icons/hand-point.svg" : "/icons/hand-idle.svg")}
+              src={isFistDetected ? withBasePath("/icons/hand-ok.svg") : (handsDetected.right ? withBasePath("/icons/hand-point.svg") : withBasePath("/icons/hand-idle.svg"))}
               alt="hand status"
               style={{
                 width: isMobile ? "22px" : "28px",
